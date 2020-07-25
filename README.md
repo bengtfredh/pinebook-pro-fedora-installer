@@ -41,6 +41,7 @@ sudo bash ./fedora-installer
 ## Known Issues:
 * Because `dialog` is weird, the script needs to be run in `bash`.
 * Some fedora mirrors are veeeery slow - change FEDORAURL to a known good mirror.
+* Reboot make Pinebook to hang when start up. Use poweroff and turn on.
 
 ## Things to do/improve
 
