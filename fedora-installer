@@ -1,0 +1,518 @@
+#! /bin/bash
+
+# *****************************
+#       Version 1.0
+# *****************************
+
+# Set globals
+TMPDIR=/var/tmp/fedora-installer
+ARCH='aarch64'
+CARCH=$(uname -m)
+NSPAWN='systemd-nspawn -q --resolv-conf=copy-host --timezone=off -D'
+FEDORAURL="https://download.fedoraproject.org/pub/fedora/linux/releases/32/Workstation/aarch64/images/Fedora-Workstation-32-1.6.aarch64.raw.xz"
+FEDORARAW="Fedora-Workstation-32-1.6.aarch64.raw"
+
+# set colorscheme
+export DIALOGRC="./dialogrc_gui"
+
+# clearing variables
+DEVICE="pbpro"
+EDITION="minimal"
+USER=""
+USERGROUPS=""
+FULLNAME=""
+PASSWORD=""
+CONFIRMPASSWORD=""
+CONFIRMROOTPASSWORD=""
+ROOTPASSWORD=""
+SDCARD=""
+SDTYP=""
+SDDEV=""
+DEV_NAME=""
+TIMEZONE=""
+LOCALE=""
+HOSTNAME=""
+
+# check if root
+if [ "$EUID" -ne 0 ]; then
+    echo "*******************************************************************************************"
+    echo "*                                                                                         *"
+    echo "*     This script requires root permissions to run. Please run as root or with sudo!      *"
+    echo "*                                                                                         *"
+    echo "*******************************************************************************************"
+  exit
+fi
+
+# Sanity checks for dependencies
+declare -a DEPENDNECIES=("git" "parted" "systemd-nspawn" "wget" "dialog" "bsdtar" "openssl" "awk" "mkfs.vfat")
+
+for i in "${DEPENDNECIES[@]}"; do
+  if ! [[ -f "/bin/$i" || -f "/sbin/$i" || -f "/usr/bin/$i" || -f "/usr/sbin/$i" ]] ; then
+    echo "$i command is missing! Please install the relevant package."
+    exit 1
+  fi
+done
+
+if [[ "$CARCH" != "aarch64" ]]; then
+if [ ! -f "/usr/lib/binfmt.d/qemu-aarch64-static.conf" ]; then
+    echo "qemu-aarch64-static.conf file is missing. Please install the relevant package."
+    exit 1
+fi
+fi
+
+
+# Functions
+msg() {
+    ALL_OFF="\e[1;0m"
+    BOLD="\e[1;1m"
+    GREEN="${BOLD}\e[1;32m"
+      local mesg=$1; shift
+      printf "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}\n" "$@" >&2
+ }
+
+info() {
+    ALL_OFF="\e[1;0m"
+    BOLD="\e[1;1m"
+    BLUE="${BOLD}\e[1;34m"
+      local mesg=$1; shift
+      printf "${BLUE}  ->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}\n" "$@" >&2
+ }
+
+usage_build_installer() {
+    echo "Usage: ${0##*/} [options]"
+    echo '    -h                 This help'
+    echo ''
+    echo ''
+    exit $1
+}
+
+get_timer(){
+    echo $(date +%s)
+}
+
+# $1: start timer
+elapsed_time(){
+    echo $(echo $1 $(get_timer) | awk '{ printf "%0.2f",($2-$1)/60 }')
+}
+
+show_elapsed_time(){
+    msg "Time %s: %s minutes..." "$1" "$(elapsed_time $2)"
+}
+
+getarmprofiles () {
+    info "Getting profiles ready for Pinebook Pro install..."
+
+    if [ -d "$TMPDIR/fedora-profiles/" ];
+    then
+        cd $TMPDIR/fedora-profiles
+        git fetch origin 1> /dev/null 2>&1
+	git reset --hard origin/master 1> /dev/null 2>&1
+    else
+        git clone https://github.com/bengtfredh/pinebook-pro-fedora-installer.git $TMPDIR/fedora-profiles/ 1> /dev/null 2>&1
+    fi
+
+}
+
+create_install() {
+    msg "Creating install for $DEVICE..."
+    info "Used device is ${SDCARD}${SDDEV}"
+    
+    # fetch and extract rootfs
+    info "Downloading latest $ARCH rootfs..."
+    cd $TMPDIR
+    wget -q --show-progress --progress=bar:force:noscroll https://osdn.net/projects/manjaro-arm/storage/.rootfs/Manjaro-ARM-$ARCH-latest.tar.gz
+
+    if [ ! -f "$FEDORARAW" ]; then
+	  info "Downloading Fedora Image..."
+      wget -q --show-progress --progress=bar:force:noscroll $FEDORAURL
+    fi
+
+    info "Extracting $ARCH rootfs..."
+    bsdtar -xpf $TMPDIR/Manjaro-ARM-$ARCH-latest.tar.gz -C $TMPDIR/root
+    
+    if [ ! -f "$FEDORARAW" ]; then
+      info "Decompress Fedora Image..."
+	  xz --decompress $TMPDIR/$FEDORARAW.xz
+    fi
+
+    
+    info "Setting up keyrings..."
+    $NSPAWN $TMPDIR/root pacman-key --init 1> /dev/null 2>&1
+    $NSPAWN $TMPDIR/root pacman-key --populate archlinux archlinuxarm manjaro manjaro-arm 1> /dev/null 2>&1
+    
+    info "Generating mirrorlist..."
+    $NSPAWN $TMPDIR/root pacman-mirrors -f10 1> /dev/null 2>&1
+    
+    info "Installing packages for $EDITION on $DEVICE..."
+    # Setup cache mount
+    mkdir -p $TMPDIR/pkg-cache
+    mount -o bind $TMPDIR/pkg-cache $TMPDIR/root/var/cache/pacman/pkg
+    # Install device and editions specific packages
+    $NSPAWN $TMPDIR/root pacman -Syyu bootsplash-theme-manjaro bootsplash-systemd linux-aarch64 uboot-pinebookpro ap6256-firmware wpa_supplicant pinebookpro-audio xf86-input-synaptics pinebookpro-post-install --noconfirm
+    
+    msg "Prepare install for Fedora..."
+    umount $TMPDIR/root/var/cache/pacman/pkg
+	mkdir -p $TMPDIR/tmp/firmware
+	mkdir -p $TMPDIR/tmp/modules
+    # Move files to save
+    mv $TMPDIR/root/boot/* $TMPDIR/boot
+	mv $TMPDIR/root/usr/lib/firmware/* $TMPDIR/tmp/firmware/
+	mv $TMPDIR/root/usr/lib/modules/* $TMPDIR/tmp/modules/
+	cp -f $TMPDIR/root/etc/fstab $TMPDIR/tmp/
+    rm -rf $TMPDIR/root/*
+	mkdir -p $TMPDIR/root/usr/lib/firmware/
+	mkdir -p $TMPDIR/root/usr/lib/modules/
+	chown -R root:root $TMPDIR/root/usr
+	mv $TMPDIR/tmp/firmware/* $TMPDIR/root/usr/lib/firmware/
+	mv $TMPDIR/tmp/modules/* $TMPDIR/root/usr/lib/modules/
+	
+    info "Making mount directories..."
+    mkdir -p $TMPDIR/imgfs
+
+    info "Mounting Fedora image..."
+    losetup /dev/loop0 $TMPDIR/Fedora-Workstation-32-1.6.aarch64.raw
+    partprobe -s /dev/loop0
+    mount /dev/loop0p3 $TMPDIR/imgfs
+
+    info "Copying files..."
+    rsync -a --info=progress2 $TMPDIR/imgfs/* $TMPDIR/root/
+
+    info "Deleting contents of /boot..."
+    rm -rf $TMPDIR/root/boot/*
+
+    info "Unmounting everything..."
+    umount /dev/loop0p3
+    losetup -d /dev/loop0
+
+    info "Deleting temp directories..."
+    rmdir $TMPDIR/imgfs
+	
+    info "Add fstab..."
+    cp -f $TMPDIR/tmp/fstab $TMPDIR/root/etc/
+    chown root:root $TMPDIR/root/etc/fstab
+
+    info "Update extlinux.conf and fstab with UUID..."
+    # Get UUID
+    BOOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}1")
+    ROOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}2")
+    # Edit extlinux.conf
+    sed -i -e "s!APPEND.*!APPEND initrd=/initramfs-linux.img console=tty1 console=ttyS2,1500000 root=UUID=${ROOTUUID} rw rootwait video=eDP-1:1920x1080@60 video=HDMI-A-1:1920x1080@60!g" ${TMPDIR}/boot/extlinux/extlinux.conf
+    # Edit fstab
+    echo "UUID=${BOOTUUID}  /boot   vfat    defaults        0       0"  > $TMPDIR/root/etc/fstab
+
+    msg "Upgrade Fedora..."
+    $NSPAWN $TMPDIR/root dnf upgrade -y --refresh 
+    $NSPAWN $TMPDIR/root dnf clean all 1> /dev/null 2>&1
+    
+    info "Set timezone..."
+    $NSPAWN $TMPDIR/root ln -sf /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime 1> /dev/null 2>&1
+    
+    info "Set locale..."
+    echo "LANG=$LOCALE" | tee --append $TMPDIR/root/etc/locale.conf 1> /dev/null 2>&1
+    
+    info "Set keymap..."
+    echo "KEYMAP=$CLIKEYMAP" | tee --append $TMPDIR/root/etc/vconsole.conf 1> /dev/null 2>&1
+    echo 'Section "InputClass"' > $TMPDIR/root/etc/X11/xorg.conf.d/00-keyboard.conf
+    echo 'Identifier "system-keyboard"' >> $TMPDIR/root/etc/X11/xorg.conf.d/00-keyboard.conf
+    echo 'Option "XkbLayout" "us"' >> $TMPDIR/root/etc/X11/xorg.conf.d/00-keyboard.conf
+    echo 'EndSection' >> $TMPDIR/root/etc/X11/xorg.conf.d/00-keyboard.conf
+    sed -i s/"us"/"$X11KEYMAP"/ $TMPDIR/root/etc/X11/xorg.conf.d/00-keyboard.conf
+
+    info "Set hostname..."
+    echo "$HOSTNAME" > $TMPDIR/root/etc/hostname
+	
+    info "Applying overlay for Fedora Workstation..."
+    cp -ap $TMPDIR/fedora-profiles/overlays/* $TMPDIR/root/
+    
+    echo "Correcting permissions from overlay..."
+    chown -R root:root $TMPDIR/root/etc
+
+    info "Setting up users..."
+    #setup users
+    echo "$USER" > $TMPDIR/user
+    echo "$PASSWORD" > $TMPDIR/password
+    echo "$ROOTPASSWORD" > $TMPDIR/rootpassword
+
+    info "Setting password for root ..."
+    $NSPAWN $TMPDIR/root awk -i inplace -F: "BEGIN {OFS=FS;} \$1 == \"root\" {\$2=\"$(openssl passwd -1 $(cat $TMPDIR/rootpassword))\"} 1" /etc/shadow 1> /dev/null 2>&1
+
+    info "Adding user..."
+    $NSPAWN $TMPDIR/root useradd -m -G wheel -p $(openssl passwd -1 $(cat $TMPDIR/password)) -s /bin/bash $(cat $TMPDIR/user) 1> /dev/null 2>&1
+    $NSPAWN $TMPDIR/root usermod -aG $USERGROUPS $(cat $TMPDIR/user) 1> /dev/null 2>&1
+    $NSPAWN $TMPDIR/root chfn -f "$FULLNAME" $(cat $TMPDIR/user) 1> /dev/null 2>&1
+	
+    # Remove temp files on host
+    rm -rf $TMPDIR/user $TMPDIR/password $TMPDIR/rootpassword
+    rm -rf $TMPDIR/Manjaro-ARM-$ARCH-latest.tar.gz*
+    rm -rf $TMPDIR/$FEDORARAW*
+
+    msg "$DEVICE $EDITION install complete"
+}
+
+prepare_card () {
+    msg "Getting $SDCARD ready for $DEVICE..."
+        # umount SD card
+        umount ${SDCARD}${SDDEV}1 1> /dev/null 2>&1
+        umount ${SDCARD}${SDDEV}2 1> /dev/null 2>&1
+    # Create partitions
+        #Clear first 32mb
+        dd if=/dev/zero of=${SDCARD} bs=1M count=32 1> /dev/null 2>&1
+        #partition with boot and root
+        parted -s $SDCARD mklabel msdos 1> /dev/null 2>&1
+        parted -s $SDCARD mkpart primary fat32 32M 512M 1> /dev/null 2>&1
+        START=`cat /sys/block/$DEV_NAME/${DEV_NAME}${SDDEV}1/start`
+        SIZE=`cat /sys/block/$DEV_NAME/${DEV_NAME}${SDDEV}1/size`
+        END_SECTOR=$(expr $START + $SIZE)
+        parted -s $SDCARD mkpart primary ext4 "${END_SECTOR}s" 100% 1> /dev/null 2>&1
+        partprobe $SDCARD 1> /dev/null 2>&1
+        mkfs.vfat "${SDCARD}${SDDEV}1" -n "${DEV_NAME}-BOOT" 1> /dev/null 2>&1
+        mkfs.ext4 -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}2" -L "${DEV_NAME}-ROOT" 1> /dev/null 2>&1
+
+        mkdir -p $TMPDIR/root
+        mkdir -p $TMPDIR/boot
+        mount ${SDCARD}${SDDEV}1 $TMPDIR/boot
+        mount ${SDCARD}${SDDEV}2 $TMPDIR/root
+
+}
+
+cleanup () {
+    msg "Writing bootloader and cleaning up after install..."
+    # Flash bootloader
+    dd if=$TMPDIR/boot/idbloader.img of=${SDCARD} seek=64 conv=notrunc,fsync 1> /dev/null 2>&1
+    dd if=$TMPDIR/boot/u-boot.itb of=${SDCARD} seek=16384 conv=notrunc,fsync 1> /dev/null 2>&1
+    msg "Remove Manjaro splash..."
+    gawk -i inplace '{gsub("bootsplash.bootfile=bootsplash-themes/manjaro/bootsplash", "");print}' $TMPDIR/boot/extlinux/extlinux.conf 1> /dev/null 2>&1
+    
+    
+    	
+    #clean up
+        umount $TMPDIR/root
+        umount $TMPDIR/boot
+		partprobe $SDCARD 1> /dev/null 2>&1
+}
+
+if [ ! -z "$EDITION" ]; then
+	USER=$(dialog --clear --title "Fedora ARM Installer" \
+	--inputbox "Enter the username you want:
+(usernames most be all lowercase)" 8 50 \
+	3>&1 1>&2 2>&3 3>&-)
+    if [[ "$USER" =~ [A-Z] ]] || [[ "$USER" == *['!'@#\$%^\&*()_+]* ]]; then
+    clear
+    msg "Configuration aborted! Username contained invalid characters."
+    exit 1
+    fi
+else 
+	clear
+	exit 1
+fi
+
+if [ ! -z "$USER" ]
+then
+FULLNAME=$(dialog --clear --title "Fedora ARM Installer" \
+    --inputbox "Enter desired Full Name for $USER:" 8 50 \
+        3>&1 1>&2 2>&3 3>&- \
+	)
+else
+    clear
+    exit 1
+fi
+
+if [ ! -z "$FULLNAME" ]; then
+	PASSWORD=$(dialog --clear --title "Fedora ARM Installer" \
+	--insecure --passwordbox "Enter new Password for $USER:" 8 50 \
+	3>&1 1>&2 2>&3 3>&- \
+	)
+else 
+	clear
+	exit 1
+fi
+
+if [ ! -z "$PASSWORD" ]; then
+	CONFIRMPASSWORD=$(dialog --clear --title "Fedora ARM Installer" \
+	--insecure --passwordbox "Confirm new Password for $USER:" 8 50 \
+	3>&1 1>&2 2>&3 3>&- \
+	)
+else 
+	clear
+	exit 1
+fi
+
+if [[ "$PASSWORD" != "$CONFIRMPASSWORD" ]]; then
+	clear
+	msg "User passwords do not match! Please restart the installer and try again."
+	exit 1
+fi
+
+if [ ! -z "$CONFIRMPASSWORD" ]; then
+	ROOTPASSWORD=$(dialog --clear --title "Fedora ARM Installer" \
+	--insecure --passwordbox "Enter new Root Password:" 8 50 \
+	3>&1 1>&2 2>&3 3>&- \
+	)
+else 
+	clear
+	exit 1
+fi
+
+if [ ! -z "$ROOTPASSWORD" ]; then
+	CONFIRMROOTPASSWORD=$(dialog --clear --title "Fedora ARM Installer" \
+	--insecure --passwordbox "Confirm new Root Password:" 8 50 \
+	3>&1 1>&2 2>&3 3>&- \
+	)
+else 
+	clear
+	exit 1
+fi
+
+if [[ "$ROOTPASSWORD" != "$CONFIRMROOTPASSWORD" ]]; then
+	clear
+	msg "Root passwords do not match! Please restart the installer and try again."
+	exit 1
+fi
+
+if [ ! -z "$CONFIRMROOTPASSWORD" ]
+then
+
+# simple command to put the results of lsblk (just the names of the devices) into an array and make that array populate the options	
+	let i=0
+	W=()
+	while read -r line; do
+		let i=$i+1
+		W+=($line "")
+	done < <( lsblk -dn -o NAME )
+	SDCARD=$(dialog --title "Fedora ARM Installer" \
+	--menu "Choose your SDCard/eMMC/USB - Be sure the correct drive is selected! 
+WARNING! This WILL destroy the data on it!" 20 50 10 \
+	"${W[@]}" 3>&2 2>&1 1>&3)
+
+# add /dev/ to the selected option above
+	DEV_NAME=$SDCARD
+	SDCARD=/dev/$SDCARD
+	SDTYP=${SDCARD:5:2}
+else 
+	clear
+	exit 1
+fi
+
+if [[ "$SDTYP" = "sd" ]]; then
+	SDDEV=""
+elif [[ "$SDTYP" = "mm" ]]; then
+	SDDEV="p"
+else 
+	clear
+	exit 1
+fi
+
+
+if [ ! -z "$SDCARD" ]; then
+	let i=0
+	W=()
+	while read -r line; do
+		let i=$i+1
+		W+=($line "")
+	done < <( timedatectl list-timezones )
+	TIMEZONE=$(dialog --clear --title "Fedora ARM Installer" \
+	--menu "Choose your timezone!" 20 50 15 \
+	"${W[@]}" 3>&1 1>&2 2>&3 3>&- \
+	)
+else 
+	clear
+	exit 1
+fi
+
+
+if [ ! -z "$TIMEZONE" ]; then
+	let i=0
+	W=()
+	while read -r line; do
+		let i=$i+1
+		W+=($line "")
+	done < <( localectl list-locales )
+	LOCALE=$(dialog --clear --title "Fedora ARM Installer" \
+		--menu "Choose your locale!" 20 50 15 \
+		"${W[@]}" 3>&1 1>&2 2>&3 3>&- \
+		)
+else 
+	clear
+	exit 1
+fi
+
+if [ ! -z "$LOCALE" ]; then
+	let i=0
+	W=()
+	while read -r line; do
+		let i=$i+1
+		W+=($line "")
+	done < <( localectl list-keymaps )
+	CLIKEYMAP=$(dialog --clear --title "Fedora ARM Installer" \
+		--menu "Choose your TTY keyboard layout:" 20 50 15 \
+		"${W[@]}" 3>&1 1>&2 2>&3 3>&- \
+	)
+else 
+	clear
+	exit 1
+fi
+
+if [ ! -z "$CLIKEYMAP" ]; then
+	let i=0
+	W=()
+	while read -r line; do
+		let i=$i+1
+		W+=($line "")
+	done < <( localectl list-x11-keymap-layouts )
+	X11KEYMAP=$(dialog --clear --title "Manjaro ARM Installer" \
+		--menu "Choose your X11 keyboard layout:" 20 50 15 \
+		"${W[@]}" 3>&1 1>&2 2>&3 3>&- \
+	)
+else 
+	clear
+	exit 1
+fi
+
+if [ ! -z "$CLIKEYMAP" ]; then
+	HOSTNAME=$(dialog --clear --title "Fedora ARM Installer" \
+	--inputbox "Enter desired hostname for this system:" 8 50 \
+	3>&1 1>&2 2>&3 3>&- \
+	)
+else 
+	clear
+	exit 1
+fi
+
+if [ ! -z "$HOSTNAME" ]; then
+	dialog --clear --title "Fedora ARM Installer" \
+    --yesno "Is the below information correct:
+    Device = $DEVICE
+    Edition = $EDITION
+    Username = $USER
+    Additional usergroups = $USERGROUPS
+    Password for $USER = (password hidden)
+    Password for root = (password hidden)
+    SDCard/eMMC/USB = $SDCARD
+    Timezone = $TIMEZONE
+    Locale = $LOCALE
+    Keyboard layout = $CLIKEYMAP
+    Hostname = $HOSTNAME" 20 70 \
+    3>&1 1>&2 2>&3 3>&-
+else
+	clear
+	exit 1
+fi
+
+response=$?
+case $response in
+   0) clear; msg "Proceeding....";;
+   1) clear; msg "Installation aborted...."; exit 1;;
+   255) clear; msg "Installation aborted..."; exit 1;;
+esac
+
+# get the profiles
+getarmprofiles
+
+# Commands
+timer_start=$(get_timer)
+
+prepare_card
+create_install
+cleanup
+show_elapsed_time "${FUNCNAME}" "${timer_start}"
+sync
