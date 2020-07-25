@@ -32,7 +32,7 @@ To use this script, please make sure that the following is correct:
 
 Then use this to get it:
 ```
-git clone https://gitlab.fredhs.net/bengt/pinebook-pro-fedora-installer
+git clone https://github.com/bengtfredh/pinebook-pro-fedora-installer
 cd pinebook-pro-fedora-installer
 chmod +x fedora-installer
 sudo bash ./fedora-installer
@@ -42,11 +42,20 @@ sudo bash ./fedora-installer
 * Because `dialog` is weird, the script needs to be run in `bash`.
 * Some fedora mirrors are veeeery slow - change FEDORAURL to a known good mirror.
 
+## Things to do/improve
+
+- [ ] Use Fedora kernel - default kernel will not boot - maybe build
+- [ ] Get sound to work better, can only get low volume - change setting in overlay
+- [ ] Change disk layout - I guess @daniel-thompson have a more sane layout
+- [ ] Add support for update-uboot - need overlays for script
+
 ## Supported Devices:
 * Pinebook Pro
 
 ## Supported Editions / Desktops:
-* Fedora Workstation
+* Fedora Workstation<BR>
+<BR>
+There is no reason why this script should not work with other editions of Fedora. Just change FEDORAURL and FEDORARAW. Script os only tested with Fedora Workstation.
 
 ## Other notes:
 
