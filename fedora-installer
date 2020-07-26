@@ -148,7 +148,7 @@ create_install() {
     mkdir -p $TMPDIR/pkg-cache
     mount -o bind $TMPDIR/pkg-cache $TMPDIR/root/var/cache/pacman/pkg
     # Install device and editions specific packages
-    $NSPAWN $TMPDIR/root pacman -Syyu bootsplash-theme-manjaro bootsplash-systemd linux-aarch64 uboot-pinebookpro ap6256-firmware wpa_supplicant pinebookpro-audio xf86-input-synaptics pinebookpro-post-install --noconfirm
+    $NSPAWN $TMPDIR/root pacman -Syyu sed bootsplash-theme-manjaro bootsplash-systemd linux-aarch64 uboot-pinebookpro ap6256-firmware wpa_supplicant pinebookpro-audio xf86-input-synaptics pinebookpro-post-install --noconfirm
     
     msg "Prepare install for Fedora..."
     umount $TMPDIR/root/var/cache/pacman/pkg
