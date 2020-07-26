@@ -170,7 +170,7 @@ create_install() {
     mkdir -p $TMPDIR/imgfs
 
     info "Mounting Fedora image..."
-    losetup /dev/loop0 $TMPDIR/Fedora-Workstation-32-1.6.aarch64.raw
+    losetup /dev/loop0 $TMPDIR/$FEDORARAW
     partprobe -s /dev/loop0
     mount /dev/loop0p3 $TMPDIR/imgfs
 
