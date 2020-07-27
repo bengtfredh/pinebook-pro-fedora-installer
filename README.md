@@ -48,7 +48,14 @@ sudo bash ./fedora-installer
 - [ ] Use Fedora kernel - default kernel will not boot - maybe build custom.
 - [ ] Get sound to work better, can only get low volume - change setting in overlay
 - [ ] Change disk layout - I guess @daniel-thompson have a more sane layout
-- [ ] Add support for update-uboot - need overlays for script
+- [X] ~~~Add support for update-uboot - need overlays for script~~~
+- [ ] Test update-uboot.
+
+## Usage
+Command for update uboot from Fedora:
+```
+update-uboot --target=pinebook-pro-rk3399 --media=/dev/mmcblkX
+```
 
 ## Supported Devices:
 * Pinebook Pro
