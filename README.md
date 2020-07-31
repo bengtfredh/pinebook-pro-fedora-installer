@@ -49,10 +49,10 @@ sudo bash ./fedora-installer
 ## Things to do/improve
 
 - [ ] Use Fedora kernel - default kernel will not boot - maybe build custom.
-- [X] ~~Get sound to work better, can only get low volume - change setting in overlay
-- [X] ~~Change disk layout - I guess @daniel-thompson have a more sane layout
-- [X] ~~Add support for update-uboot - need overlays for script
-- [X] ~~Test update-uboot
+- [X] ~~Get sound to work better, can only get low volume - change setting in overlay~~
+- [X] ~~Change disk layout - I guess @daniel-thompson have a more sane layout~~
+- [X] ~~Add support for update-uboot - need overlays for script~~
+- [X] ~~Test update-uboot~~
 - [ ] Create kernel upgrade script
 
 ## Usage
