@@ -1,23 +1,25 @@
 #! /bin/bash
 
 # *****************************
-#       Version 1.0
+#       Version 2.0
 # *****************************
+
+# Change download url and raw filename to your liking
+FEDORAURL="https://fedora.uib.no/fedora/linux/releases/32/Workstation/aarch64/images/Fedora-Workstation-32-1.6.aarch64.raw.xz"
+FEDORARAW="Fedora-Workstation-32-1.6.aarch64.raw"
 
 # Set globals
 TMPDIR=/var/tmp/fedora-installer
 ARCH='aarch64'
 CARCH=$(uname -m)
 NSPAWN='systemd-nspawn -q --resolv-conf=copy-host --timezone=off -D'
-FEDORAURL="https://download.fedoraproject.org/pub/fedora/linux/releases/32/Workstation/aarch64/images/Fedora-Workstation-32-1.6.aarch64.raw.xz"
-FEDORARAW="Fedora-Workstation-32-1.6.aarch64.raw"
 
 # set colorscheme
 export DIALOGRC="./dialogrc_gui"
 
 # clearing variables
-DEVICE="pbpro"
-EDITION="minimal"
+DEVICE="Pinebook Pro"
+EDITION="Fedora Workstation"
 USER=""
 USERGROUPS=""
 FULLNAME=""
@@ -44,7 +46,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Sanity checks for dependencies
-declare -a DEPENDNECIES=("git" "parted" "systemd-nspawn" "wget" "dialog" "bsdtar" "openssl" "awk" "mkfs.vfat")
+declare -a DEPENDNECIES=("sed" "rsync" "git" "parted" "systemd-nspawn" "wget" "dialog" "bsdtar" "openssl" "awk" "mkfs.vfat")
 
 for i in "${DEPENDNECIES[@]}"; do
   if ! [[ -f "/bin/$i" || -f "/sbin/$i" || -f "/usr/bin/$i" || -f "/usr/sbin/$i" ]] ; then
@@ -54,7 +56,7 @@ for i in "${DEPENDNECIES[@]}"; do
 done
 
 if [[ "$CARCH" != "aarch64" ]]; then
-if [ ! -f "/usr/lib/binfmt.d/qemu-aarch64-static.conf" ]; then
+if ! [[ -f "/usr/lib/binfmt.d/qemu-aarch64-static.conf" || -f "/usr/lib/binfmt.d/qemu-static.conf" ]]; then
     echo "qemu-aarch64-static.conf file is missing. Please install the relevant package."
     exit 1
 fi
@@ -102,107 +104,131 @@ show_elapsed_time(){
 getarmprofiles () {
     info "Getting profiles ready for Pinebook Pro install..."
 
-    if [ -d "$TMPDIR/fedora-profiles/" ];
-    then
-        cd $TMPDIR/fedora-profiles
-        git fetch origin 1> /dev/null 2>&1
-	git reset --hard origin/master 1> /dev/null 2>&1
-    else
-        git clone https://github.com/bengtfredh/pinebook-pro-fedora-installer.git $TMPDIR/fedora-profiles/ 1> /dev/null 2>&1
-    fi
+    mkdir -p $TMPDIR/fedora-profiles 1> /dev/null 2>&1
+    cp -rf ./overlays $TMPDIR/fedora-profiles/
 
 }
 
-create_install() {
-    msg "Creating install for $DEVICE..."
-    info "Used device is ${SDCARD}${SDDEV}"
+prepare_media() {
+    msg "Prepare source media..."
     
     # fetch and extract rootfs
     info "Downloading latest $ARCH rootfs..."
     cd $TMPDIR
+    rm -rf $TMPDIR/Manjaro-ARM-$ARCH-latest.tar.gz 1> /dev/null 2>&1
     wget -q --show-progress --progress=bar:force:noscroll https://osdn.net/projects/manjaro-arm/storage/.rootfs/Manjaro-ARM-$ARCH-latest.tar.gz
 
     if [ ! -f "$FEDORARAW" ]; then
-	  info "Downloading Fedora Image..."
+    info "Downloading Fedora Image..."
       wget -q --show-progress --progress=bar:force:noscroll $FEDORAURL
     fi
 
     info "Extracting $ARCH rootfs..."
-    bsdtar -xpf $TMPDIR/Manjaro-ARM-$ARCH-latest.tar.gz -C $TMPDIR/root
+    mkdir -p $TMPDIR/manjaro 1> /dev/null 2>&1
+    bsdtar -xpf $TMPDIR/Manjaro-ARM-$ARCH-latest.tar.gz -C $TMPDIR/manjaro
+    rm -rf $TMPDIR/Manjaro-ARM-$ARCH-latest.tar.gz 1> /dev/null 2>&1
     
     if [ ! -f "$FEDORARAW" ]; then
       info "Decompress Fedora Image..."
 	  xz --decompress $TMPDIR/$FEDORARAW.xz
     fi
+}
 
+manjaro_install() {
+    msg "Prepare kernel..."
     
     info "Setting up keyrings..."
-    $NSPAWN $TMPDIR/root pacman-key --init 1> /dev/null 2>&1
-    $NSPAWN $TMPDIR/root pacman-key --populate archlinux archlinuxarm manjaro manjaro-arm 1> /dev/null 2>&1
+    $NSPAWN $TMPDIR/manjaro pacman-key --init 1> /dev/null 2>&1
+    $NSPAWN $TMPDIR/manjaro pacman-key --populate archlinux archlinuxarm manjaro manjaro-arm 1> /dev/null 2>&1
     
     info "Generating mirrorlist..."
-    $NSPAWN $TMPDIR/root pacman-mirrors -f10 1> /dev/null 2>&1
+    $NSPAWN $TMPDIR/manjaro pacman-mirrors -f10 1> /dev/null 2>&1
     
-    info "Installing packages for $EDITION on $DEVICE..."
-    # Setup cache mount
-    mkdir -p $TMPDIR/pkg-cache
-    mount -o bind $TMPDIR/pkg-cache $TMPDIR/root/var/cache/pacman/pkg
+    info "Installing packages..."
     # Install device and editions specific packages
-    $NSPAWN $TMPDIR/root pacman -Syyu sed bootsplash-theme-manjaro bootsplash-systemd linux-aarch64 uboot-pinebookpro ap6256-firmware wpa_supplicant pinebookpro-audio xf86-input-synaptics pinebookpro-post-install --noconfirm
-    
-    msg "Prepare install for Fedora..."
-    umount $TMPDIR/root/var/cache/pacman/pkg
-	mkdir -p $TMPDIR/tmp/firmware
-	mkdir -p $TMPDIR/tmp/modules
-    # Move files to save
-    mv $TMPDIR/root/boot/* $TMPDIR/boot
-	mv $TMPDIR/root/usr/lib/firmware/* $TMPDIR/tmp/firmware/
-	mv $TMPDIR/root/usr/lib/modules/* $TMPDIR/tmp/modules/
-	cp -f $TMPDIR/root/etc/fstab $TMPDIR/tmp/
-    rm -rf $TMPDIR/root/*
-	mkdir -p $TMPDIR/root/usr/lib/firmware/
-	mkdir -p $TMPDIR/root/usr/lib/modules/
-	chown -R root:root $TMPDIR/root/usr
-	mv $TMPDIR/tmp/firmware/* $TMPDIR/root/usr/lib/firmware/
-	mv $TMPDIR/tmp/modules/* $TMPDIR/root/usr/lib/modules/
+    $NSPAWN $TMPDIR/manjaro pacman -Syyu sed bootsplash-theme-manjaro bootsplash-systemd linux-aarch64 uboot-pinebookpro ap6256-firmware wpa_supplicant pinebookpro-audio xf86-input-synaptics pinebookpro-post-install --noconfirm
+
+}    
+
+install_fedora() {
+    msg "Install Fedora from media..."
 	
     info "Making mount directories..."
-    mkdir -p $TMPDIR/imgfs
+    mkdir -p $TMPDIR/imgfs/{1,2,3}
 
     info "Mounting Fedora image..."
     losetup /dev/loop0 $TMPDIR/$FEDORARAW
     partprobe -s /dev/loop0
-    mount /dev/loop0p3 $TMPDIR/imgfs
+    mount /dev/loop0p1 $TMPDIR/imgfs/1
+    mount /dev/loop0p2 $TMPDIR/imgfs/2
+    mount /dev/loop0p3 $TMPDIR/imgfs/3
 
-    info "Copying files..."
-    rsync -a --info=progress2 $TMPDIR/imgfs/* $TMPDIR/root/
+    info "Copying Fedora files (progress status sucks)..."
+    rsync -a --info=progress2 $TMPDIR/imgfs/3/* $TMPDIR/root/
+    rsync -a --info=progress2 $TMPDIR/imgfs/2/* $TMPDIR/root/boot/
+    rsync -a --info=progress2 $TMPDIR/imgfs/1/* $TMPDIR/root/boot/efi/
 
-    info "Deleting contents of /boot..."
-    rm -rf $TMPDIR/root/boot/*
+    info "copy kernel..."
+    rsync -a $TMPDIR/manjaro/boot/ $TMPDIR/root/boot/
+    rsync -a $TMPDIR/manjaro/usr/lib/firmware/ $TMPDIR/root/usr/lib/firmware/
+    rsync -a $TMPDIR/manjaro/usr/lib/modules/ $TMPDIR/root/usr/lib/modules/
+    rm -rf $TMPDIR/manjaro
 
-    info "Unmounting everything..."
+    info "Unmounting Fedora media..."
+    umount /dev/loop0p1
+    umount /dev/loop0p2
     umount /dev/loop0p3
     losetup -d /dev/loop0
 
     info "Deleting temp directories..."
+    rmdir $TMPDIR/imgfs/1
+    rmdir $TMPDIR/imgfs/2
+    rmdir $TMPDIR/imgfs/3
     rmdir $TMPDIR/imgfs
+
+    rm -rf $TMPDIR/$FEDORARAW*
+}
+
+upgrade_fedora() {
+    msg "Upgrade Fedora and add packages..."
+
+    mkdir -p $TMPDIR/dnf
+    mount -o bind $TMPDIR/dnf $TMPDIR/root/var/cache/dnf
+    $NSPAWN $TMPDIR/root dnf upgrade -y --refresh
+
+    info "Install extra packages..."
+    $NSPAWN $TMPDIR/root dnf install -y haveged acpid
+    
+    info "Enable services from extra packages..."
+    $NSPAWN $TMPDIR/root systemctl enable haveged.service
+    $NSPAWN $TMPDIR/root systemctl enable acpid.service
+
+    info "Clear dnf cache..."
+    umount $TMPDIR/root/var/cache/dnf 
+    $NSPAWN $TMPDIR/root dnf clean all 1> /dev/null 2>&1
+    
+}
 	
-    info "Add fstab..."
-    cp -f $TMPDIR/tmp/fstab $TMPDIR/root/etc/
-    chown root:root $TMPDIR/root/etc/fstab
+configure_fedora() {
+    msg "Configure Fedora..."
+    info "Turning SELinux off (no support in kernel)..."
+    sed -i 's/SELINUX=enforcing/SELINUX=disabled/' $TMPDIR/root/etc/selinux/config
 
     info "Update extlinux.conf and fstab with UUID..."
     # Get UUID
-    BOOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}1")
-    ROOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}2")
+    EFIUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}1")
+    BOOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}2")
+    ROOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}3")
     # Edit extlinux.conf
-    sed -i -e "s!APPEND.*!APPEND initrd=/initramfs-linux.img console=tty1 console=ttyS2,1500000 root=UUID=${ROOTUUID} rw rootwait video=eDP-1:1920x1080@60 video=HDMI-A-1:1920x1080@60!g" ${TMPDIR}/boot/extlinux/extlinux.conf
+    sed -i -e "s!APPEND.*!APPEND initrd=/initramfs-linux.img console=tty1 console=ttyS2,1500000 root=UUID=${ROOTUUID} rw rootwait video=eDP-1:1920x1080@60 video=HDMI-A-1:1920x1080@60!g" ${TMPDIR}/root/boot/extlinux/extlinux.conf
     # Edit fstab
-    echo "UUID=${BOOTUUID}  /boot   vfat    defaults        0       0"  > $TMPDIR/root/etc/fstab
+    echo "UUID=${ROOTUUID}  /   ext4    defaults        0       1"  > $TMPDIR/root/etc/fstab
+    echo "UUID=${BOOTUUID}  /boot   ext4    defaults        0       2" >> $TMPDIR/root/etc/fstab
+    echo "UUID=${EFIUUID}  /boot/efi   vfat    defaults        0       2"  >> $TMPDIR/root/etc/fstab
 
-    msg "Upgrade Fedora..."
-    $NSPAWN $TMPDIR/root dnf upgrade -y --refresh 
-    $NSPAWN $TMPDIR/root dnf clean all 1> /dev/null 2>&1
+    # Edit grub parameters
+    sed -i "s|GRUB_CMDLINE_LINUX=\"|& console=tty1 console=ttyS2,1500000n8 video=eDP-1:1920x1080@60 video=HDMI-A-1:1920x1080@60 |" $TMPDIR/root/etc/default/grub
+    sed -i -e "s!kernelopts=.*!kernelopts=root=UUID=${ROOTUUID} ro cma=256MB console=tty1 console=ttyS2,1500000n8 video=eDP-1:1920x1080@60 video=HDMI-A-1:1920x1080@60!g" $TMPDIR/root/boot/efi/EFI/fedora/grubenv
     
     info "Set timezone..."
     $NSPAWN $TMPDIR/root ln -sf /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime 1> /dev/null 2>&1
@@ -224,8 +250,13 @@ create_install() {
     info "Applying overlay for Fedora Workstation..."
     cp -ap $TMPDIR/fedora-profiles/overlays/* $TMPDIR/root/
     
-    echo "Correcting permissions from overlay..."
-    chown -R root:root $TMPDIR/root/etc
+    # Correcting permissions from overlay
+    
+    info "Enable suspend2idle..."
+    sed -i s/"#SuspendState=mem standby freeze"/"SuspendState=freeze"/g $TMPDIR/root/etc/systemd/sleep.conf
+
+    info "Fix update-uboot for pinebook-pro-rk3399"
+    ln -s ../socs.d/Rockchips-ARMv8 $TMPDIR/root/usr/share/arm-image-installer/boards.d/pinebook-pro-rk3399
 
     info "Setting up users..."
     #setup users
@@ -243,10 +274,14 @@ create_install() {
 	
     # Remove temp files on host
     rm -rf $TMPDIR/user $TMPDIR/password $TMPDIR/rootpassword
-    rm -rf $TMPDIR/Manjaro-ARM-$ARCH-latest.tar.gz*
-    rm -rf $TMPDIR/$FEDORARAW*
 
     msg "$DEVICE $EDITION install complete"
+}
+
+build_from_template () {
+	sed \
+		-e "s/\${DEV_NAME}/`basename ${DEV_NAME}`/g" \
+		< $1.template > $1
 }
 
 prepare_card () {
@@ -254,41 +289,50 @@ prepare_card () {
         # umount SD card
         umount ${SDCARD}${SDDEV}1 1> /dev/null 2>&1
         umount ${SDCARD}${SDDEV}2 1> /dev/null 2>&1
-    # Create partitions
+        umount ${SDCARD}${SDDEV}3 1> /dev/null 2>&1
+        umount ${SDCARD}${SDDEV}4 1> /dev/null 2>&1
+        umount ${SDCARD}${SDDEV}5 1> /dev/null 2>&1
+        umount ${SDCARD}${SDDEV}6 1> /dev/null 2>&1
+
+    info "Create partitions..."
         #Clear first 32mb
         dd if=/dev/zero of=${SDCARD} bs=1M count=32 1> /dev/null 2>&1
-        #partition with boot and root
-        parted -s $SDCARD mklabel msdos 1> /dev/null 2>&1
-        parted -s $SDCARD mkpart primary fat32 32M 512M 1> /dev/null 2>&1
-        START=`cat /sys/block/$DEV_NAME/${DEV_NAME}${SDDEV}1/start`
-        SIZE=`cat /sys/block/$DEV_NAME/${DEV_NAME}${SDDEV}1/size`
-        END_SECTOR=$(expr $START + $SIZE)
-        parted -s $SDCARD mkpart primary ext4 "${END_SECTOR}s" 100% 1> /dev/null 2>&1
-        partprobe $SDCARD 1> /dev/null 2>&1
-        mkfs.vfat "${SDCARD}${SDDEV}1" -n "${DEV_NAME}-BOOT" 1> /dev/null 2>&1
-        mkfs.ext4 -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}2" -L "${DEV_NAME}-ROOT" 1> /dev/null 2>&1
+
+    info "Partition $DEV_NAME"
+
+	build_from_template gpt.sfdisk
+        sfdisk ${SDCARD} < gpt.sfdisk 1> /dev/null 2>&1
+
+        partprobe -s $SDCARD
+
+    info "Format partitions on $DEV_NAME"
+        mkfs.vfat -F 32 "${SDCARD}${SDDEV}1" -n EFI 1> /dev/null 2>&1
+        mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}2" -L "${DEV_NAME}-BOOT" 1> /dev/null 2>&1
+        mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}3" -L "${DEV_NAME}-ROOT" 1> /dev/null 2>&1
 
         mkdir -p $TMPDIR/root
-        mkdir -p $TMPDIR/boot
-        mount ${SDCARD}${SDDEV}1 $TMPDIR/boot
-        mount ${SDCARD}${SDDEV}2 $TMPDIR/root
+        mount ${SDCARD}${SDDEV}3 $TMPDIR/root
+        sleep 1
+        mkdir -p $TMPDIR/root/boot
+        mount ${SDCARD}${SDDEV}2 $TMPDIR/root/boot
+        sleep 1
+        mkdir -p $TMPDIR/root/boot/efi
+        mount ${SDCARD}${SDDEV}1 $TMPDIR/root/boot/efi
 
 }
 
 cleanup () {
     msg "Writing bootloader and cleaning up after install..."
     # Flash bootloader
-    dd if=$TMPDIR/boot/idbloader.img of=${SDCARD} seek=64 conv=notrunc,fsync 1> /dev/null 2>&1
-    dd if=$TMPDIR/boot/u-boot.itb of=${SDCARD} seek=16384 conv=notrunc,fsync 1> /dev/null 2>&1
-    msg "Remove Manjaro splash..."
-    gawk -i inplace '{gsub("bootsplash.bootfile=bootsplash-themes/manjaro/bootsplash", "");print}' $TMPDIR/boot/extlinux/extlinux.conf 1> /dev/null 2>&1
-    
-    
+    dd if=$TMPDIR/root/boot/idbloader.img of=${SDCARD} seek=64 conv=notrunc,fsync 1> /dev/null 2>&1
+    dd if=$TMPDIR/root/boot/u-boot.itb of=${SDCARD} seek=16384 conv=notrunc,fsync 1> /dev/null 2>&1
     	
     #clean up
+        umount $TMPDIR/root/boot/efi
+        umount $TMPDIR/root/boot
         umount $TMPDIR/root
-        umount $TMPDIR/boot
-		partprobe $SDCARD 1> /dev/null 2>&1
+	partprobe $SDCARD 1> /dev/null 2>&1
+	rm -rf $TMPDIR
 }
 
 if [ ! -z "$EDITION" ]; then
@@ -470,7 +514,7 @@ fi
 
 if [ ! -z "$CLIKEYMAP" ]; then
 	HOSTNAME=$(dialog --clear --title "Fedora ARM Installer" \
-	--inputbox "Enter desired hostname for this system:" 8 50 \
+	--inputbox "Enter desired hostname (fqdn) for this system:" 8 50 \
 	3>&1 1>&2 2>&3 3>&- \
 	)
 else 
@@ -500,7 +544,7 @@ fi
 
 response=$?
 case $response in
-   0) clear; msg "Proceeding....";;
+   0) clear; msg "Installation started....";;
    1) clear; msg "Installation aborted...."; exit 1;;
    255) clear; msg "Installation aborted..."; exit 1;;
 esac
@@ -512,7 +556,11 @@ getarmprofiles
 timer_start=$(get_timer)
 
 prepare_card
-create_install
+prepare_media
+manjaro_install
+install_fedora
+upgrade_fedora
+configure_fedora
 cleanup
 show_elapsed_time "${FUNCNAME}" "${timer_start}"
 sync
