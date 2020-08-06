@@ -53,13 +53,17 @@ sudo bash ./fedora-installer
 - [X] ~~Change disk layout - I guess @daniel-thompson have a more sane layout~~
 - [X] ~~Add support for update-uboot - need overlays for script~~
 - [X] ~~Test update-uboot~~
-- [ ] Create kernel upgrade script
+- [X] ~~Create kernel upgrade script~~
 
 ## Usage
 Command for update uboot from Fedora:
 ```
 update-uboot --target=pinebook-pro-rk3399 --media=/dev/mmcblkX
 ```
+
+## Upgrade kernel
+Script /usr/bin/kernel-upgrade<BR>
+Become root and run ./kernel-upgrade. Script will upgrade kernel on local installation.
 
 ## Supported Devices:
 * Pinebook Pro

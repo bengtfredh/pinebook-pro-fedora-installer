@@ -1,0 +1,133 @@
+#! /bin/bash
+
+# *****************************
+#       Version 1.0
+# *****************************
+
+# Set globals
+TMPDIR=/var/tmp/kernel-upgrade
+ARCH='aarch64'
+CARCH=$(uname -m)
+NSPAWN='systemd-nspawn -q --resolv-conf=copy-host --timezone=off -D'
+
+# set colorscheme
+export DIALOGRC="./dialogrc_gui"
+
+# clearing variables
+DEVICE="Pinebook Pro"
+EDITION="Fedora Workstation"
+
+# check if root
+if [ "$EUID" -ne 0 ]; then
+    echo "*******************************************************************************************"
+    echo "*                                                                                         *"
+    echo "*     This script requires root permissions to run. Please run as root or with sudo!      *"
+    echo "*                                                                                         *"
+    echo "*******************************************************************************************"
+  exit
+fi
+
+# Sanity checks for dependencies
+declare -a DEPENDNECIES=("sed" "rsync" "git" "parted" "systemd-nspawn" "wget" "dialog" "bsdtar" "openssl" "awk" "mkfs.vfat")
+
+for i in "${DEPENDNECIES[@]}"; do
+  if ! [[ -f "/bin/$i" || -f "/sbin/$i" || -f "/usr/bin/$i" || -f "/usr/sbin/$i" ]] ; then
+    echo "$i command is missing! Please install the relevant package."
+    exit 1
+  fi
+done
+
+if [[ "$CARCH" != "aarch64" ]]; then
+if ! [[ -f "/usr/lib/binfmt.d/qemu-aarch64-static.conf" || -f "/usr/lib/binfmt.d/qemu-static.conf" ]]; then
+    echo "qemu-aarch64-static.conf file is missing. Please install the relevant package."
+    exit 1
+fi
+fi
+
+
+# Functions
+msg() {
+    ALL_OFF="\e[1;0m"
+    BOLD="\e[1;1m"
+    GREEN="${BOLD}\e[1;32m"
+      local mesg=$1; shift
+      printf "${GREEN}==>${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}\n" "$@" >&2
+ }
+
+info() {
+    ALL_OFF="\e[1;0m"
+    BOLD="\e[1;1m"
+    BLUE="${BOLD}\e[1;34m"
+      local mesg=$1; shift
+      printf "${BLUE}  ->${ALL_OFF}${BOLD} ${mesg}${ALL_OFF}\n" "$@" >&2
+ }
+
+usage_build_installer() {
+    echo "Usage: ${0##*/} [options]"
+    echo '    -h                 This help'
+    echo ''
+    echo ''
+    exit $1
+}
+
+get_timer(){
+    echo $(date +%s)
+}
+
+# $1: start timer
+elapsed_time(){
+    echo $(echo $1 $(get_timer) | awk '{ printf "%0.2f",($2-$1)/60 }')
+}
+
+show_elapsed_time(){
+    msg "Time %s: %s minutes..." "$1" "$(elapsed_time $2)"
+}
+
+prepare_media() {
+    msg "Prepare source media..."
+    
+    # fetch and extract rootfs
+    info "Downloading latest $ARCH rootfs..."
+    cd $TMPDIR
+    rm -rf $TMPDIR/Manjaro-ARM-$ARCH-latest.tar.gz 1> /dev/null 2>&1
+    wget -q --show-progress --progress=bar:force:noscroll https://osdn.net/projects/manjaro-arm/storage/.rootfs/Manjaro-ARM-$ARCH-latest.tar.gz
+
+    info "Extracting $ARCH rootfs..."
+    mkdir -p $TMPDIR/manjaro 1> /dev/null 2>&1
+    bsdtar -xpf $TMPDIR/Manjaro-ARM-$ARCH-latest.tar.gz -C $TMPDIR/manjaro
+    rm -rf $TMPDIR/Manjaro-ARM-$ARCH-latest.tar.gz 1> /dev/null 2>&1
+    
+}
+
+manjaro_install() {
+    msg "Prepare kernel..."
+    
+    info "Setting up keyrings..."
+    $NSPAWN $TMPDIR/manjaro pacman-key --init 1> /dev/null 2>&1
+    $NSPAWN $TMPDIR/manjaro pacman-key --populate archlinux archlinuxarm manjaro manjaro-arm 1> /dev/null 2>&1
+    
+    info "Generating mirrorlist..."
+    $NSPAWN $TMPDIR/manjaro pacman-mirrors -f10 1> /dev/null 2>&1
+    
+    info "Installing packages..."
+    # Install device and editions specific packages
+    $NSPAWN $TMPDIR/manjaro pacman -Syyu sed bootsplash-theme-manjaro bootsplash-systemd linux-aarch64 uboot-pinebookpro ap6256-firmware wpa_supplicant pinebookpro-audio xf86-input-synaptics pinebookpro-post-install --noconfirm
+
+    info "Copy kernel..."
+    cp -rf /boot/extlinux/extlinux.conf $TMPDIR/manjaro/boot/extlinux/extlinux.conf
+    rsync -a $TMPDIR/manjaro/boot/ /boot/
+    rsync -a $TMPDIR/manjaro/usr/lib/firmware/ /usr/lib/firmware/
+    rsync -a $TMPDIR/manjaro/usr/lib/modules/ /usr/lib/modules/
+    rm -rf $TMPDIR/manjaro
+
+    msg "Kernel upgrade complete"
+    msg "Please reboot"
+}
+
+# Commands
+
+timer_start=$(get_timer)
+prepare_media
+manjaro_install
+show_elapsed_time "${FUNCNAME}" "${timer_start}"
+sync
