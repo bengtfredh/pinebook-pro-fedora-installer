@@ -557,7 +557,6 @@ timer_start=$(get_timer)
 
 prepare_card
 prepare_media
-manjaro_install
 install_fedora
 upgrade_fedora
 configure_fedora
