@@ -54,6 +54,7 @@ sudo bash ./fedora-installer
 - [X] ~~Add support for update-uboot - need overlays for script~~
 - [X] ~~Test update-uboot~~
 - [X] ~~Create kernel upgrade script~~
+- [ ] Add u-boot gfx
 
 ## Usage
 Command for update uboot from Fedora:
