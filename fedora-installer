@@ -146,7 +146,7 @@ manjaro_install() {
     
     info "Installing packages..."
     # Install device and editions specific packages
-    $NSPAWN $TMPDIR/manjaro pacman -Syyu sed bootsplash-theme-manjaro bootsplash-systemd linux-aarch64 uboot-pinebookpro ap6256-firmware wpa_supplicant pinebookpro-audio xf86-input-synaptics pinebookpro-post-install --noconfirm
+    $NSPAWN $TMPDIR/manjaro pacman -Syyu sed bootsplash-theme-manjaro bootsplash-systemd linux uboot-pinebookpro ap6256-firmware wpa_supplicant pinebookpro-audio xf86-input-synaptics pinebookpro-post-install --noconfirm
 
 }    
 
