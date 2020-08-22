@@ -1,7 +1,0 @@
-# write uboot
-echo "= Writing idbloader.img for $TARGET .... on media $MEDIA"
-dd if=$PREFIX/usr/share/uboot/$TARGET/idbloader.img of=$MEDIA seek=64; sync; sleep 5
-echo "= Writing u-boot FIT image for $TARGET .... on media $MEDIA"
-dd if=$PREFIX/usr/share/uboot/$TARGET/u-boot.itb of=$MEDIA seek=16384; sync; sleep 5
-# set console for Rockchips
-SYSCON=ttyS2,1500000n8
