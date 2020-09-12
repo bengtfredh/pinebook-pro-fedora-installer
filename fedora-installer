@@ -6,6 +6,7 @@
 
 # Change download url and raw filename to your liking
 FEDORAURL="https://fedora.uib.no/fedora/linux/releases/32/Workstation/aarch64/images/Fedora-Workstation-32-1.6.aarch64.raw.xz"
+#FEDORAURL="https://download.fedoraproject.org/pub/fedora/linux/releases/32/Workstation/aarch64/images/Fedora-Workstation-32-1.6.aarch64.raw.xz"
 FEDORARAW="Fedora-Workstation-32-1.6.aarch64.raw"
 
 # Set globals
