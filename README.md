@@ -54,7 +54,7 @@ sudo bash ./fedora-installer
 - [X] ~~Add support for update-uboot - need overlays for script~~
 - [X] ~~Test update-uboot~~
 - [X] ~~Create kernel upgrade script~~
-- [-] Add u-boot gfx - I have been testing this and it is too buggy by now. I like https://github.com/pcm720/u-boot-build-scripts/releases.
+- [ ] Add u-boot gfx - I have been testing this and it is too buggy by now. I like https://github.com/pcm720/u-boot-build-scripts/releases.
 - [ ] Change disklayout and filesystem to btrfs.
 - [ ] Change source to smaller image (container.tar.zx) and dnf an installation.
 
