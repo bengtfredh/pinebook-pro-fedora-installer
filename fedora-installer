@@ -142,8 +142,8 @@ manjaro_install() {
     $NSPAWN $TMPDIR/manjaro pacman-key --init 1> /dev/null 2>&1
     $NSPAWN $TMPDIR/manjaro pacman-key --populate archlinux archlinuxarm manjaro manjaro-arm 1> /dev/null 2>&1
     
-    info "Generating mirrorlist..."
-    $NSPAWN $TMPDIR/manjaro pacman-mirrors -f10 1> /dev/null 2>&1
+    #info "Generating mirrorlist..."
+    #$NSPAWN $TMPDIR/manjaro pacman-mirrors -f10 1> /dev/null 2>&1
     
     info "Installing packages..."
     # Install device and editions specific packages
