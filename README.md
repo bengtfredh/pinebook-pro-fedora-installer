@@ -1,10 +1,5 @@
 # pinebook-pro-fedora-installer
 
-Inspiration and code parts from:<BR>
-https://gitlab.manjaro.org/manjaro-arm/applications/manjaro-arm-installer<BR>
-https://github.com/nikhiljha/pp-fedora-sdsetup<BR>
-https://github.com/daniel-thompson/pinebook-pro-debian-installer.git
-
 Scripts for installing Fedora aarch64 directly to SD/eMMC. You will get Manjaro kernel, rest is pure Fedora.
 
 This script is "interactive". Meaning that it asks you questions when run to customize your install. Like username, password etc.
@@ -57,6 +52,7 @@ sudo bash ./fedora-installer
 - [ ] Add u-boot gfx - I have been testing this and it is too buggy by now. I like https://github.com/pcm720/u-boot-build-scripts/releases.
 - [ ] Change disklayout and filesystem to btrfs.
 - [ ] Change source to smaller image (container.tar.zx) and dnf an installation.
+- [X] ~~Create copr repo and replace overlay and Manjaro part of the script~~ https://github.com/bengtfredh/pinebook-pro-copr
 
 ## Usage
 Command for update uboot from Fedora:
@@ -66,7 +62,7 @@ update-uboot --target=pinebook-pro-rk3399 --media=/dev/mmcblkX
 
 ## Upgrade kernel
 Script /usr/bin/kernel-upgrade<BR>
-Become root and run ./kernel-upgrade. Script will upgrade kernel on local installation.
+Become root and run `kernel-upgrade` . Script will upgrade kernel on local installation.
 
 ## Supported Devices:
 * Pinebook Pro
@@ -79,3 +75,9 @@ There is no reason why this script should not work with other editions of Fedora
 ## Other notes:
 
 This script **should** be distro-agnostic, which means you can install *pinebook-pro-fedora-installer* from **any** distro, as long as the dependencies are met.
+  
+## Credits
+Inspiration and code parts from:<BR>
+https://gitlab.manjaro.org/manjaro-arm/applications/manjaro-arm-installer<BR>
+https://github.com/nikhiljha/pp-fedora-sdsetup<BR>
+https://github.com/daniel-thompson/pinebook-pro-debian-installer.git
