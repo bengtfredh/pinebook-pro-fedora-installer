@@ -14,6 +14,7 @@ TMPDIR=/var/tmp/fedora-installer
 ARCH='aarch64'
 CARCH=$(uname -m)
 NSPAWN='systemd-nspawn -q --resolv-conf=copy-host --timezone=off -D'
+LOOP=$(losetup -f)
 
 # set colorscheme
 export DIALOGRC="./dialogrc_gui"
@@ -158,11 +159,12 @@ install_fedora() {
     mkdir -p $TMPDIR/imgfs/{1,2,3}
 
     info "Mounting Fedora image..."
-    losetup /dev/loop0 $TMPDIR/$FEDORARAW
-    partprobe -s /dev/loop0
-    mount /dev/loop0p1 $TMPDIR/imgfs/1
-    mount /dev/loop0p2 $TMPDIR/imgfs/2
-    mount /dev/loop0p3 $TMPDIR/imgfs/3
+
+    losetup $LOOP $TMPDIR/$FEDORARAW
+    partprobe -s $LOOP
+    mount "$LOOP"p1 $TMPDIR/imgfs/1
+    mount "$LOOP"p2 $TMPDIR/imgfs/2
+    mount "$LOOP"p3 $TMPDIR/imgfs/3
 
     info "Copying Fedora files (progress status sucks)..."
     rsync -a --info=progress2 $TMPDIR/imgfs/3/* $TMPDIR/root/
@@ -176,10 +178,10 @@ install_fedora() {
     rm -rf $TMPDIR/manjaro
 
     info "Unmounting Fedora media..."
-    umount /dev/loop0p1
-    umount /dev/loop0p2
-    umount /dev/loop0p3
-    losetup -d /dev/loop0
+    umount "$LOOP"p1
+    umount "$LOOP"p2
+    umount "$LOOP"p3
+    losetup -d $LOOP
 
     info "Deleting temp directories..."
     rmdir $TMPDIR/imgfs/1
