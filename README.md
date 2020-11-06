@@ -26,7 +26,6 @@ To use this script, please make sure that the following is correct:
 
 * Some Fedora mirrors are veeeery slow - change FEDORAURL to a known good mirror.
 * an **empty** SD/eMMC card with at least 16 GB storage is plugged in, but not mounted.
-* Nothing is mounted on /dev/loop0
 * that your user account has `sudo` rights.
 
 Then use this to get it:
