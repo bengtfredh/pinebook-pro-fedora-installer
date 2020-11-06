@@ -10,7 +10,8 @@ FEDORAURL="https://fedora.uib.no/fedora/linux/releases/32/Workstation/aarch64/im
 FEDORARAW="Fedora-Workstation-32-1.6.aarch64.raw"
 
 # Set globals
-TMPDIR=/var/tmp/fedora-installer
+TMPDIR=/var/fedora-installer/tmp
+MEDIADIR=/var/fedora-installer/media
 ARCH='aarch64'
 CARCH=$(uname -m)
 NSPAWN='systemd-nspawn -q --resolv-conf=copy-host --timezone=off -D'
@@ -113,27 +114,25 @@ getarmprofiles () {
 
 prepare_media() {
     msg "Prepare source media..."
-    
+
     # fetch and extract rootfs
-    info "Downloading latest $ARCH rootfs..."
-    cd $TMPDIR
-    rm -rf $TMPDIR/Manjaro-ARM-$ARCH-latest.tar.gz 1> /dev/null 2>&1
-    wget -q --show-progress --progress=bar:force:noscroll https://osdn.net/projects/manjaro-arm/storage/.rootfs/Manjaro-ARM-$ARCH-latest.tar.gz
-
-    if [ ! -f "$FEDORARAW" ]; then
-    info "Downloading Fedora Image..."
-      wget -q --show-progress --progress=bar:force:noscroll $FEDORAURL
+    if [ ! -f "$MEDIADIR/Manjaro-ARM-$ARCH-latest.tar.gz" ]; then
+      info "Downloading latest $ARCH rootfs..."
+      wget -q --show-progress --progress=bar:force:noscroll https://osdn.net/projects/manjaro-arm/storage/.rootfs/Manjaro-ARM-$ARCH-latest.tar.gz --output-document $MEDIADIR/Manjaro-ARM-$ARCH-latest.tar.gz
     fi
-
     info "Extracting $ARCH rootfs..."
-    mkdir -p $TMPDIR/manjaro 1> /dev/null 2>&1
-    bsdtar -xpf $TMPDIR/Manjaro-ARM-$ARCH-latest.tar.gz -C $TMPDIR/manjaro
-    rm -rf $TMPDIR/Manjaro-ARM-$ARCH-latest.tar.gz 1> /dev/null 2>&1
-    
-    if [ ! -f "$FEDORARAW" ]; then
-      info "Decompress Fedora Image..."
-	  xz --decompress $TMPDIR/$FEDORARAW.xz
+    mkdir -p $TMPDIR/manjaro
+    bsdtar -xpf $MEDIADIR/Manjaro-ARM-$ARCH-latest.tar.gz -C $TMPDIR/manjaro
+
+    # fetch and extract fedora image
+    if [ ! -f "$MEDIADIR/$FEDORARAW.xz" ]; then
+      info "Downloading Fedora Image..."
+      wget -q --show-progress --progress=bar:force:noscroll $FEDORAURL --output-document $MEDIADIR/$FEDORARAW.xz
     fi
+
+    info "Decompress Fedora Image..."
+    xz --decompress --keep $MEDIADIR/$FEDORARAW.xz
+    mv $MEDIADIR/$FEDORARAW $TMPDIR/$FEDORARAW
 }
 
 manjaro_install() {
@@ -252,9 +251,7 @@ configure_fedora() {
 	
     info "Applying overlay for Fedora Workstation..."
     cp -ap $TMPDIR/fedora-profiles/overlays/* $TMPDIR/root/
-    
-    # Correcting permissions from overlay
-    
+
     info "Enable suspend2idle..."
     sed -i s/"#SuspendState=mem standby freeze"/"SuspendState=freeze"/g $TMPDIR/root/etc/systemd/sleep.conf
 
@@ -331,11 +328,13 @@ cleanup () {
     dd if=$TMPDIR/root/boot/u-boot.itb of=${SDCARD} seek=16384 conv=notrunc,fsync 1> /dev/null 2>&1
     	
     #clean up
-        umount $TMPDIR/root/boot/efi
-        umount $TMPDIR/root/boot
-        umount $TMPDIR/root
-	partprobe $SDCARD 1> /dev/null 2>&1
-	rm -rf $TMPDIR
+    umount $TMPDIR/root/boot/efi
+    umount $TMPDIR/root/boot
+    umount $TMPDIR/root
+    partprobe $SDCARD 1> /dev/null 2>&1
+
+    rm -rf $TMPDIR
+    msg "Not removing installation media $MEDIADIR"
 }
 
 if [ ! -z "$EDITION" ]; then
@@ -552,14 +551,21 @@ case $response in
    255) clear; msg "Installation aborted..."; exit 1;;
 esac
 
+if [ ! -f "$TMPDIR" ]; then
+  rm -rf $TMPDIR
+fi
+
+mkdir -p $MEDIADIR
+mkdir -p $TMPDIR
+
 # get the profiles
 getarmprofiles
 
 # Commands
 timer_start=$(get_timer)
 
-prepare_card
 prepare_media
+prepare_card
 manjaro_install
 install_fedora
 upgrade_fedora
