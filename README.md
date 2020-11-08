@@ -67,8 +67,9 @@ Become root and run `kernel-upgrade` . Script will upgrade kernel on local insta
 * Pinebook Pro
 
 ## Supported Editions / Desktops:
-* Fedora Workstation<BR>
-<BR>
+* Fedora Workstation
+* Fedora Minimal
+
 There is no reason why this script should not work with other editions of Fedora. Just change FEDORAURL and FEDORARAW. Script os only tested with Fedora Workstation.
 
 ## Other notes:
