@@ -2,6 +2,5 @@ label: gpt
 unit: sectors
 first-lba: 32768
 
-/dev/mmcblk1p1 : start=        32768, size=      1048576, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B, name="${DEV_NAME}-EFI"
-/dev/mmcblk1p2 : start=      1081344, size=      2097152, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="${DEV_NAME}-Boot", attrs="LegacyBIOSBootable"
-/dev/mmcblk1p3 : start=      3178496,                     type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="${DEV_NAME}-RootFS"
+/dev/mmcblk1p1 : start=      65536, size=      2097152, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="${DEV_NAME}-Boot", attrs="LegacyBIOSBootable"
+/dev/mmcblk1p2 : start=      2162688,                     type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, name="${DEV_NAME}-RootFS"
