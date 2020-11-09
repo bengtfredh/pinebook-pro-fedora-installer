@@ -10,8 +10,8 @@ FEDORAURL=${1:-"https://download.fedoraproject.org/pub/fedora/linux/releases/33/
 FEDORARAW="$(basename -s .xz "${FEDORAURL}")"
 
 # Set globals
-TMPDIR=/var/fedora-installer/tmp
-MEDIADIR=/var/fedora-installer/media
+TMPDIR=/var/tmp/fedora-installer
+MEDIADIR=/var/tmp/fedora-installer-media
 ARCH='aarch64'
 CARCH=$(uname -m)
 NSPAWN='systemd-nspawn -q --bind-ro=/etc/resolv.conf --timezone=off -D'
@@ -116,13 +116,13 @@ prepare_media() {
     msg "Prepare source media..."
 
     # fetch and extract rootfs
-    if [ ! -f "$MEDIADIR/Manjaro-ARM-$ARCH-latest.tar.gz" ]; then
+    if [ ! -f "$MEDIADIR/Manjaro-ARM-aarch64-latest.tar.gz" ]; then
       info "Downloading latest $ARCH rootfs..."
-      wget -q --show-progress --progress=bar:force:noscroll https://osdn.net/projects/manjaro-arm/storage/.rootfs/Manjaro-ARM-$ARCH-latest.tar.gz --output-document $MEDIADIR/Manjaro-ARM-$ARCH-latest.tar.gz
+      wget -q --show-progress --progress=bar:force:noscroll https://osdn.net/projects/manjaro-arm/storage/.rootfs/Manjaro-ARM-aarch64-latest.tar.gz --output-document $MEDIADIR/Manjaro-ARM-aarch64-latest.tar.gz
     fi
     info "Extracting $ARCH rootfs..."
     mkdir -p $TMPDIR/manjaro
-    bsdtar -xpf $MEDIADIR/Manjaro-ARM-$ARCH-latest.tar.gz -C $TMPDIR/manjaro
+    bsdtar -xpf $MEDIADIR/Manjaro-ARM-aarch64-latest.tar.gz -C $TMPDIR/manjaro
 
     # fetch and extract fedora image
     if [ ! -f "$MEDIADIR/$FEDORARAW.xz" ]; then
