@@ -14,7 +14,7 @@ TMPDIR=/var/fedora-installer/tmp
 MEDIADIR=/var/fedora-installer/media
 ARCH='aarch64'
 CARCH=$(uname -m)
-NSPAWN='systemd-nspawn -q --resolv-conf=copy-host --timezone=off -D'
+NSPAWN='systemd-nspawn -q --bind-ro=/etc/resolv.conf --timezone=off -D'
 LOOP=$(losetup -f)
 
 # set colorscheme
