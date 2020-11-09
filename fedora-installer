@@ -1,13 +1,13 @@
 #! /bin/bash
 
 # *****************************
-#       Version 2.0
+#       Version 2.0.11
 # *****************************
 
-# Change download url and raw filename to your liking
-FEDORAURL="https://fedora.uib.no/fedora/linux/releases/32/Workstation/aarch64/images/Fedora-Workstation-32-1.6.aarch64.raw.xz"
-#FEDORAURL="https://download.fedoraproject.org/pub/fedora/linux/releases/32/Workstation/aarch64/images/Fedora-Workstation-32-1.6.aarch64.raw.xz"
-FEDORARAW="Fedora-Workstation-32-1.6.aarch64.raw"
+
+# Fedora image read url as parameter
+FEDORAURL=${1:-"https://download.fedoraproject.org/pub/fedora/linux/releases/33/Workstation/aarch64/images/Fedora-Workstation-33-1.2.aarch64.raw.xz"}
+FEDORARAW="$(basename -s .xz "${FEDORAURL}")"
 
 # Set globals
 TMPDIR=/var/fedora-installer/tmp

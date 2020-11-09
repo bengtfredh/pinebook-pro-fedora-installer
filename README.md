@@ -9,6 +9,7 @@ Runtime is approx 40-50 minutes for Fedora 32 Workstation depending on your band
 ## Dependencies:
 * systemd-container (systemd-nspawn)
 * bash
+* coreutils
 * wget
 * git
 * systemd
@@ -24,7 +25,10 @@ Runtime is approx 40-50 minutes for Fedora 32 Workstation depending on your band
 ## Installing and using from gitlab:
 To use this script, please make sure that the following is correct:
 
-* Some Fedora mirrors are veeeery slow - change FEDORAURL to a known good mirror.
+* Some Fedora mirrors are veeeery slow - give url to known good mirror as parameter i.e.
+```
+bash ./fedora-installer https://fedora.uib.no/fedora/linux/releases/32/Workstation/aarch64/images/Fedora-Workstation-32-1.6.aarch64.raw.xz
+```
 * an **empty** SD/eMMC card with at least 16 GB storage is plugged in, but not mounted.
 * that your user account has `sudo` rights.
 
@@ -33,7 +37,7 @@ Then use this to get it:
 git clone https://github.com/bengtfredh/pinebook-pro-fedora-installer
 cd pinebook-pro-fedora-installer
 chmod +x fedora-installer
-sudo bash ./fedora-installer
+sudo bash ./fedora-installer [<url>]
 ```
 
 ## Known Issues:
@@ -67,9 +71,14 @@ Become root and run `kernel-upgrade` . Script will upgrade kernel on local insta
 * Pinebook Pro
 
 ## Supported Editions / Desktops:
-* Fedora Workstation<BR>
-<BR>
-There is no reason why this script should not work with other editions of Fedora. Just change FEDORAURL and FEDORARAW. Script os only tested with Fedora Workstation.
+* Fedora Workstation (default)
+* Fedora Minimal (Add full url as parameter to script)
+Example:
+```
+bash ./fedora-installer https://mirrors.dotsrc.org/fedora-buffet/fedora-secondary/releases/32/Spins/aarch64/images/Fedora-Minimal-32-1.6.aarch64.raw.xz
+```
+
+There is no reason why this script should not work with other editions of Fedora. Just give url as maramater when script run. Script is tested with Fedora Workstation and Minimal.
 
 ## Other notes:
 
