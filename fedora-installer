@@ -10,14 +10,14 @@ FEDORAURL=${1:-"https://download.fedoraproject.org/pub/fedora/linux/releases/33/
 FEDORARAW="$(basename -s .xz "${FEDORAURL}")"
 
 # Set globals
-TMPDIR=/var/fedora-installer/tmp
-MEDIADIR=/var/fedora-installer/media
+TMPDIR=/var/tmp/fedora-installer
+MEDIADIR=/var/tmp/fedora-installer-media
 ARCH='aarch64'
 CARCH=$(uname -m)
 # systemd-nspawn --resolv-conf has been buggy. If you have issues you can try,
 # --resolv-conf=auto --resolv-conf=copy-host or --bind-ro=/etc/resolv.conf
 # It all depends how resolv.conf is managed on host and in image.
-NSPAWN='systemd-nspawn -q --resolv-conf=copy-host --timezone=off -D'
+NSPAWN='systemd-nspawn -q --resolv-conf=auto --timezone=off -D'
 LOOP=$(losetup -f)
 
 # set colorscheme
@@ -119,13 +119,13 @@ prepare_media() {
     msg "Prepare source media..."
 
     # fetch and extract rootfs
-    if [ ! -f "$MEDIADIR/Manjaro-ARM-$ARCH-latest.tar.gz" ]; then
+    if [ ! -f "$MEDIADIR/Manjaro-ARM-aarch64-latest.tar.gz" ]; then
       info "Downloading latest $ARCH rootfs..."
-      wget -q --show-progress --progress=bar:force:noscroll https://osdn.net/projects/manjaro-arm/storage/.rootfs/Manjaro-ARM-$ARCH-latest.tar.gz --output-document $MEDIADIR/Manjaro-ARM-$ARCH-latest.tar.gz
+      wget -q --show-progress --progress=bar:force:noscroll https://osdn.net/projects/manjaro-arm/storage/.rootfs/Manjaro-ARM-aarch64-latest.tar.gz --output-document $MEDIADIR/Manjaro-ARM-aarch64-latest.tar.gz
     fi
     info "Extracting $ARCH rootfs..."
     mkdir -p $TMPDIR/manjaro
-    bsdtar -xpf $MEDIADIR/Manjaro-ARM-$ARCH-latest.tar.gz -C $TMPDIR/manjaro
+    bsdtar -xpf $MEDIADIR/Manjaro-ARM-aarch64-latest.tar.gz -C $TMPDIR/manjaro
 
     # fetch and extract fedora image
     if [ ! -f "$MEDIADIR/$FEDORARAW.xz" ]; then
@@ -134,8 +134,7 @@ prepare_media() {
     fi
 
     info "Decompress Fedora Image..."
-    xz --decompress --keep $MEDIADIR/$FEDORARAW.xz
-    mv $MEDIADIR/$FEDORARAW $TMPDIR/$FEDORARAW
+    xz --decompress $MEDIADIR/$FEDORARAW.xz
 }
 
 manjaro_install() {
@@ -162,7 +161,7 @@ install_fedora() {
 
     info "Mounting Fedora image..."
 
-    losetup $LOOP $TMPDIR/$FEDORARAW
+    losetup $LOOP $MEDIADIR/$FEDORARAW
     partprobe -s $LOOP
     mount "$LOOP"p2 $TMPDIR/imgfs/2
     mount "$LOOP"p3 $TMPDIR/imgfs/3
@@ -187,7 +186,6 @@ install_fedora() {
     rmdir $TMPDIR/imgfs/3
     rmdir $TMPDIR/imgfs
 
-    rm -rf $TMPDIR/$FEDORARAW*
 }
 
 upgrade_fedora() {
