@@ -439,12 +439,12 @@ else
 	exit 1
 fi
 
-if [[ "$SDTYP" = "sd" ]]; then
+if [[ "$SDTYP" = "sd" || "$SDTYP" = "vd" ]]; then
 	SDDEV=""
-elif [[ "$SDTYP" = "mm" ]]; then
+elif [[ "$SDTYP" = "mm" || "$SDTYP" = "lo" ]]; then
 	SDDEV="p"
-elif [[ "$SDTYP" = "lo" ]]; then
-	SDDEV="p"
+elif [[ "$SDTYP" = "nv" ]]; then
+	SDDEV="n1p"
 else
   clear
   exit 1
