@@ -128,7 +128,7 @@ prepare_media() {
     bsdtar -xpf $MEDIADIR/Manjaro-ARM-aarch64-latest.tar.gz -C $TMPDIR/manjaro
 
     # fetch and extract fedora image
-    if [ ! -f "$MEDIADIR/$FEDORARAW.xz" ]; then
+    if [ ! -f "$MEDIADIR/$FEDORARAW" ]; then
       info "Downloading Fedora Image..."
       wget -q --show-progress --progress=bar:force:noscroll $FEDORAURL --output-document $MEDIADIR/$FEDORARAW.xz
     fi
