@@ -188,7 +188,7 @@ upgrade_fedora() {
     msg "Upgrade Fedora and add packages..."
 
     info "Remove uneeded packages..."
-    $NSPAWN $TMPDIR/root dnf remove -y kernel-* grub2-* bcm283x-firmware shim-aa64 --noautoremove 1> /dev/null 2>&1
+    $NSPAWN $TMPDIR/root dnf remove -y kernel kernel-core kernel-modules grub2-common grub2-efi-aa64 grub2-tools grub2-tools-extra grub2-tools-minimal bcm283x-firmware shim-aa64 --noautoremove 1> /dev/null 2>&1
     info "Upgrade Fedora..."
     mkdir -p $TMPDIR/dnf
     mount -o bind $TMPDIR/dnf $TMPDIR/root/var/cache/dnf
