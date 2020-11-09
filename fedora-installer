@@ -7,7 +7,9 @@
 # Change download url and raw filename to your liking
 FEDORAURL="https://fedora.uib.no/fedora/linux/releases/32/Workstation/aarch64/images/Fedora-Workstation-32-1.6.aarch64.raw.xz"
 #FEDORAURL="https://download.fedoraproject.org/pub/fedora/linux/releases/32/Workstation/aarch64/images/Fedora-Workstation-32-1.6.aarch64.raw.xz"
+#FEDORAURL="https://mirrors.dotsrc.org/fedora-buffet/fedora-secondary/releases/32/Spins/aarch64/images/Fedora-Minimal-32-1.6.aarch64.raw.xz"
 FEDORARAW="Fedora-Workstation-32-1.6.aarch64.raw"
+#FEDORARAW="Fedora-Minimal-32-1.6.aarch64.raw.xz"
 
 # Set globals
 TMPDIR=/var/fedora-installer/tmp
