@@ -14,7 +14,7 @@ TMPDIR=/var/tmp/fedora-installer
 MEDIADIR=/var/tmp/fedora-installer-media
 ARCH='aarch64'
 CARCH=$(uname -m)
-NSPAWN='systemd-nspawn -q --bind-ro=/etc/resolv.conf --timezone=off -D'
+NSPAWN='systemd-nspawn -q --resolv-conf=auto --timezone=off -D'
 LOOP=$(losetup -f)
 
 # set colorscheme
@@ -131,8 +131,7 @@ prepare_media() {
     fi
 
     info "Decompress Fedora Image..."
-    xz --decompress --keep $MEDIADIR/$FEDORARAW.xz
-    mv $MEDIADIR/$FEDORARAW $TMPDIR/$FEDORARAW
+    xz --decompress $MEDIADIR/$FEDORARAW.xz
 }
 
 manjaro_install() {
@@ -159,7 +158,7 @@ install_fedora() {
 
     info "Mounting Fedora image..."
 
-    losetup $LOOP $TMPDIR/$FEDORARAW
+    losetup $LOOP $MEDIADIR/$FEDORARAW
     partprobe -s $LOOP
     mount "$LOOP"p1 $TMPDIR/imgfs/1
     mount "$LOOP"p2 $TMPDIR/imgfs/2
@@ -188,7 +187,6 @@ install_fedora() {
     rmdir $TMPDIR/imgfs/3
     rmdir $TMPDIR/imgfs
 
-    rm -rf $TMPDIR/$FEDORARAW*
 }
 
 upgrade_fedora() {
