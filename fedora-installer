@@ -14,6 +14,9 @@ TMPDIR=/var/fedora-installer/tmp
 MEDIADIR=/var/fedora-installer/media
 ARCH='aarch64'
 CARCH=$(uname -m)
+# systemd-nspawn --resolv-conf has been buggy. If you have issues you can try,
+# --resolv-conf=auto --resolv-conf=copy-host or --bind-ro=/etc/resolv.conf
+# It all depends how resolv.conf is managed on host and in image.
 NSPAWN='systemd-nspawn -q --resolv-conf=copy-host --timezone=off -D'
 LOOP=$(losetup -f)
 
@@ -49,7 +52,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Sanity checks for dependencies
-declare -a DEPENDNECIES=("sed" "rsync" "git" "parted" "systemd-nspawn" "wget" "dialog" "bsdtar" "openssl" "awk" "mkfs.vfat")
+declare -a DEPENDNECIES=("sed" "rsync" "git" "systemd-nspawn" "wget" "dialog" "bsdtar" "openssl" "awk" )
 
 for i in "${DEPENDNECIES[@]}"; do
   if ! [[ -f "/bin/$i" || -f "/sbin/$i" || -f "/usr/bin/$i" || -f "/usr/sbin/$i" ]] ; then
@@ -155,13 +158,12 @@ install_fedora() {
     msg "Install Fedora from media..."
 	
     info "Making mount directories..."
-    mkdir -p $TMPDIR/imgfs/{1,2,3}
+    mkdir -p $TMPDIR/imgfs/{2,3}
 
     info "Mounting Fedora image..."
 
     losetup $LOOP $TMPDIR/$FEDORARAW
     partprobe -s $LOOP
-    mount "$LOOP"p1 $TMPDIR/imgfs/1
     mount "$LOOP"p2 $TMPDIR/imgfs/2
     mount "$LOOP"p3 $TMPDIR/imgfs/3
 
@@ -176,13 +178,11 @@ install_fedora() {
     rm -rf $TMPDIR/manjaro
 
     info "Unmounting Fedora media..."
-    umount "$LOOP"p1
     umount "$LOOP"p2
     umount "$LOOP"p3
     losetup -d $LOOP
 
     info "Deleting temp directories..."
-    rmdir $TMPDIR/imgfs/1
     rmdir $TMPDIR/imgfs/2
     rmdir $TMPDIR/imgfs/3
     rmdir $TMPDIR/imgfs
@@ -193,15 +193,17 @@ install_fedora() {
 upgrade_fedora() {
     msg "Upgrade Fedora and add packages..."
 
+    info "Remove uneeded packages..."
+    $NSPAWN $TMPDIR/root dnf remove kernel-* grub2-* bcm283x-firmware shim-aa64 --noautoremove 1> /dev/null 2>&1
+    info "Upgrade Fedora..."
     mkdir -p $TMPDIR/dnf
     mount -o bind $TMPDIR/dnf $TMPDIR/root/var/cache/dnf
     $NSPAWN $TMPDIR/root dnf upgrade -y --refresh
 
     info "Install extra packages..."
-    $NSPAWN $TMPDIR/root dnf install -y haveged acpid
+    $NSPAWN $TMPDIR/root dnf install -y acpid
     
     info "Enable services from extra packages..."
-    $NSPAWN $TMPDIR/root systemctl enable haveged.service
     $NSPAWN $TMPDIR/root systemctl enable acpid.service
 
     info "Clear dnf cache..."
@@ -212,7 +214,7 @@ upgrade_fedora() {
 	
 configure_fedora() {
     msg "Configure Fedora..."
-    info "Turning SELinux off (no support in kernel)..."
+    info "Turning SELinux off (no support in Manjaro kernel)..."
     sed -i 's/SELINUX=enforcing/SELINUX=disabled/' $TMPDIR/root/etc/selinux/config
 
     info "Update extlinux.conf and fstab with UUID..."
