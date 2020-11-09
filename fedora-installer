@@ -168,7 +168,6 @@ install_fedora() {
     info "Copying Fedora files (progress status sucks)..."
     rsync -a --info=progress2 $TMPDIR/imgfs/3/* $TMPDIR/root/
     rsync -a --info=progress2 $TMPDIR/imgfs/2/* $TMPDIR/root/boot/
-    rsync -a --info=progress2 $TMPDIR/imgfs/1/* $TMPDIR/root/boot/efi/
 
     info "copy kernel..."
     rsync -a $TMPDIR/manjaro/boot/ $TMPDIR/root/boot/
@@ -218,20 +217,17 @@ configure_fedora() {
 
     info "Update extlinux.conf and fstab with UUID..."
     # Get UUID
-    EFIUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}1")
-    BOOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}2")
-    ROOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}3")
+    BOOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}1")
+    ROOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}2")
     # Edit extlinux.conf
     sed -i -e "s!APPEND.*!APPEND initrd=/initramfs-linux.img console=tty1 console=ttyS2,1500000 root=UUID=${ROOTUUID} rw rootwait video=eDP-1:1920x1080@60 video=HDMI-A-1:1920x1080@60!g" ${TMPDIR}/root/boot/extlinux/extlinux.conf
     # Edit fstab
     echo "UUID=${ROOTUUID}  /   ext4    defaults        0       1"  > $TMPDIR/root/etc/fstab
     echo "UUID=${BOOTUUID}  /boot   ext4    defaults        0       2" >> $TMPDIR/root/etc/fstab
-    echo "UUID=${EFIUUID}  /boot/efi   vfat    defaults        0       2"  >> $TMPDIR/root/etc/fstab
 
     # Edit grub parameters
     sed -i "s|GRUB_CMDLINE_LINUX=\"|& console=tty1 console=ttyS2,1500000n8 video=eDP-1:1920x1080@60 video=HDMI-A-1:1920x1080@60 |" $TMPDIR/root/etc/default/grub
-    sed -i -e "s!kernelopts=.*!kernelopts=root=UUID=${ROOTUUID} ro cma=256MB console=tty1 console=ttyS2,1500000n8 video=eDP-1:1920x1080@60 video=HDMI-A-1:1920x1080@60!g" $TMPDIR/root/boot/efi/EFI/fedora/grubenv
-    
+
     info "Set timezone..."
     $NSPAWN $TMPDIR/root ln -sf /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime 1> /dev/null 2>&1
     
@@ -306,18 +302,15 @@ prepare_card () {
         partprobe -s $SDCARD
 
     info "Format partitions on $DEV_NAME"
-        mkfs.vfat -F 32 "${SDCARD}${SDDEV}1" -n EFI 1> /dev/null 2>&1
-        mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}2" -L "${DEV_NAME}-BOOT" 1> /dev/null 2>&1
-        mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}3" -L "${DEV_NAME}-ROOT" 1> /dev/null 2>&1
+        mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}1" -L "${DEV_NAME}-BOOT" 1> /dev/null 2>&1
+        mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}2" -L "${DEV_NAME}-ROOT" 1> /dev/null 2>&1
 
         mkdir -p $TMPDIR/root
-        mount ${SDCARD}${SDDEV}3 $TMPDIR/root
+        mount ${SDCARD}${SDDEV}2 $TMPDIR/root
         sleep 1
         mkdir -p $TMPDIR/root/boot
-        mount ${SDCARD}${SDDEV}2 $TMPDIR/root/boot
+        mount ${SDCARD}${SDDEV}1 $TMPDIR/root/boot
         sleep 1
-        mkdir -p $TMPDIR/root/boot/efi
-        mount ${SDCARD}${SDDEV}1 $TMPDIR/root/boot/efi
 
 }
 
@@ -328,7 +321,6 @@ cleanup () {
     dd if=$TMPDIR/root/boot/u-boot.itb of=${SDCARD} seek=16384 conv=notrunc,fsync 1> /dev/null 2>&1
     	
     #clean up
-    umount $TMPDIR/root/boot/efi
     umount $TMPDIR/root/boot
     umount $TMPDIR/root
     partprobe $SDCARD 1> /dev/null 2>&1
