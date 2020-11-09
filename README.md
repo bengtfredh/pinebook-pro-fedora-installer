@@ -22,7 +22,7 @@ Runtime is approx 40-50 minutes for Fedora 32 Workstation depending on your band
 * dosfstools
 * polkit
 
-## Installing and using from gitlab:
+## Installing and using from github:
 To use this script, please make sure that the following is correct:
 
 * Some Fedora mirrors are veeeery slow - give url to known good mirror as parameter i.e.
@@ -79,6 +79,16 @@ bash ./fedora-installer https://mirrors.dotsrc.org/fedora-buffet/fedora-secondar
 ```
 
 There is no reason why this script should not work with other editions of Fedora. Just give url as maramater when script run. Script is tested with Fedora Workstation and Minimal.
+
+## To create image you later can dd to mmc/emmc/nvme
+Prepare an image by running following:
+```
+fallocate -l 10GiB myimage.img
+losetup /dev/loopX myimage.img
+```
+Run the script pointing to /dev/loopX.
+* You need to flash image with a tool that preserve UUID like dd.
+* You should expand and grow root partition/filesystem.
 
 ## Other notes:
 
