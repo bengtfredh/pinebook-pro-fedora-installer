@@ -14,6 +14,9 @@ TMPDIR=/var/tmp/fedora-installer
 MEDIADIR=/var/tmp/fedora-installer-media
 ARCH='aarch64'
 CARCH=$(uname -m)
+# systemd-nspawn --resolv-conf has been buggy. If you have issues you can try,
+# --resolv-conf=auto --resolv-conf=copy-host or --bind-ro=/etc/resolv.conf
+# It all depends how resolv.conf is managed on host and in image.
 NSPAWN='systemd-nspawn -q --resolv-conf=auto --timezone=off -D'
 LOOP=$(losetup -f)
 
@@ -49,7 +52,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Sanity checks for dependencies
-declare -a DEPENDNECIES=("sed" "rsync" "git" "parted" "systemd-nspawn" "wget" "dialog" "bsdtar" "openssl" "awk" "mkfs.vfat")
+declare -a DEPENDNECIES=("sed" "rsync" "git" "systemd-nspawn" "wget" "dialog" "bsdtar" "openssl" "awk" )
 
 for i in "${DEPENDNECIES[@]}"; do
   if ! [[ -f "/bin/$i" || -f "/sbin/$i" || -f "/usr/bin/$i" || -f "/usr/sbin/$i" ]] ; then
@@ -154,20 +157,18 @@ install_fedora() {
     msg "Install Fedora from media..."
 	
     info "Making mount directories..."
-    mkdir -p $TMPDIR/imgfs/{1,2,3}
+    mkdir -p $TMPDIR/imgfs/{2,3}
 
     info "Mounting Fedora image..."
 
     losetup $LOOP $MEDIADIR/$FEDORARAW
     partprobe -s $LOOP
-    mount "$LOOP"p1 $TMPDIR/imgfs/1
     mount "$LOOP"p2 $TMPDIR/imgfs/2
     mount "$LOOP"p3 $TMPDIR/imgfs/3
 
     info "Copying Fedora files (progress status sucks)..."
     rsync -a --info=progress2 $TMPDIR/imgfs/3/* $TMPDIR/root/
     rsync -a --info=progress2 $TMPDIR/imgfs/2/* $TMPDIR/root/boot/
-    rsync -a --info=progress2 $TMPDIR/imgfs/1/* $TMPDIR/root/boot/efi/
 
     info "copy kernel..."
     rsync -a $TMPDIR/manjaro/boot/ $TMPDIR/root/boot/
@@ -176,13 +177,11 @@ install_fedora() {
     rm -rf $TMPDIR/manjaro
 
     info "Unmounting Fedora media..."
-    umount "$LOOP"p1
     umount "$LOOP"p2
     umount "$LOOP"p3
     losetup -d $LOOP
 
     info "Deleting temp directories..."
-    rmdir $TMPDIR/imgfs/1
     rmdir $TMPDIR/imgfs/2
     rmdir $TMPDIR/imgfs/3
     rmdir $TMPDIR/imgfs
@@ -192,15 +191,17 @@ install_fedora() {
 upgrade_fedora() {
     msg "Upgrade Fedora and add packages..."
 
+    info "Remove uneeded packages..."
+    $NSPAWN $TMPDIR/root dnf remove kernel-* grub2-* bcm283x-firmware shim-aa64 --noautoremove 1> /dev/null 2>&1
+    info "Upgrade Fedora..."
     mkdir -p $TMPDIR/dnf
     mount -o bind $TMPDIR/dnf $TMPDIR/root/var/cache/dnf
     $NSPAWN $TMPDIR/root dnf upgrade -y --refresh
 
     info "Install extra packages..."
-    $NSPAWN $TMPDIR/root dnf install -y haveged acpid
+    $NSPAWN $TMPDIR/root dnf install -y acpid
     
     info "Enable services from extra packages..."
-    $NSPAWN $TMPDIR/root systemctl enable haveged.service
     $NSPAWN $TMPDIR/root systemctl enable acpid.service
 
     info "Clear dnf cache..."
@@ -211,25 +212,22 @@ upgrade_fedora() {
 	
 configure_fedora() {
     msg "Configure Fedora..."
-    info "Turning SELinux off (no support in kernel)..."
+    info "Turning SELinux off (no support in Manjaro kernel)..."
     sed -i 's/SELINUX=enforcing/SELINUX=disabled/' $TMPDIR/root/etc/selinux/config
 
     info "Update extlinux.conf and fstab with UUID..."
     # Get UUID
-    EFIUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}1")
-    BOOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}2")
-    ROOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}3")
+    BOOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}1")
+    ROOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}2")
     # Edit extlinux.conf
     sed -i -e "s!APPEND.*!APPEND initrd=/initramfs-linux.img console=tty1 console=ttyS2,1500000 root=UUID=${ROOTUUID} rw rootwait video=eDP-1:1920x1080@60 video=HDMI-A-1:1920x1080@60!g" ${TMPDIR}/root/boot/extlinux/extlinux.conf
     # Edit fstab
     echo "UUID=${ROOTUUID}  /   ext4    defaults        0       1"  > $TMPDIR/root/etc/fstab
     echo "UUID=${BOOTUUID}  /boot   ext4    defaults        0       2" >> $TMPDIR/root/etc/fstab
-    echo "UUID=${EFIUUID}  /boot/efi   vfat    defaults        0       2"  >> $TMPDIR/root/etc/fstab
 
     # Edit grub parameters
     sed -i "s|GRUB_CMDLINE_LINUX=\"|& console=tty1 console=ttyS2,1500000n8 video=eDP-1:1920x1080@60 video=HDMI-A-1:1920x1080@60 |" $TMPDIR/root/etc/default/grub
-    sed -i -e "s!kernelopts=.*!kernelopts=root=UUID=${ROOTUUID} ro cma=256MB console=tty1 console=ttyS2,1500000n8 video=eDP-1:1920x1080@60 video=HDMI-A-1:1920x1080@60!g" $TMPDIR/root/boot/efi/EFI/fedora/grubenv
-    
+
     info "Set timezone..."
     $NSPAWN $TMPDIR/root ln -sf /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime 1> /dev/null 2>&1
     
@@ -304,18 +302,15 @@ prepare_card () {
         partprobe -s $SDCARD
 
     info "Format partitions on $DEV_NAME"
-        mkfs.vfat -F 32 "${SDCARD}${SDDEV}1" -n EFI 1> /dev/null 2>&1
-        mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}2" -L "${DEV_NAME}-BOOT" 1> /dev/null 2>&1
-        mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}3" -L "${DEV_NAME}-ROOT" 1> /dev/null 2>&1
+        mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}1" -L "${DEV_NAME}-BOOT" 1> /dev/null 2>&1
+        mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}2" -L "${DEV_NAME}-ROOT" 1> /dev/null 2>&1
 
         mkdir -p $TMPDIR/root
-        mount ${SDCARD}${SDDEV}3 $TMPDIR/root
+        mount ${SDCARD}${SDDEV}2 $TMPDIR/root
         sleep 1
         mkdir -p $TMPDIR/root/boot
-        mount ${SDCARD}${SDDEV}2 $TMPDIR/root/boot
+        mount ${SDCARD}${SDDEV}1 $TMPDIR/root/boot
         sleep 1
-        mkdir -p $TMPDIR/root/boot/efi
-        mount ${SDCARD}${SDDEV}1 $TMPDIR/root/boot/efi
 
 }
 
@@ -326,7 +321,6 @@ cleanup () {
     dd if=$TMPDIR/root/boot/u-boot.itb of=${SDCARD} seek=16384 conv=notrunc,fsync 1> /dev/null 2>&1
     	
     #clean up
-    umount $TMPDIR/root/boot/efi
     umount $TMPDIR/root/boot
     umount $TMPDIR/root
     partprobe $SDCARD 1> /dev/null 2>&1
