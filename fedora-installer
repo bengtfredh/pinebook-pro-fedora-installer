@@ -157,18 +157,16 @@ install_fedora() {
     msg "Install Fedora from media..."
 	
     info "Making mount directories..."
-    mkdir -p $TMPDIR/imgfs/{2,3}
+    mkdir -p $TMPDIR/imgfs/3
 
     info "Mounting Fedora image..."
 
     losetup $LOOP $MEDIADIR/$FEDORARAW
     partprobe -s $LOOP
-    mount "$LOOP"p2 $TMPDIR/imgfs/2
     mount "$LOOP"p3 $TMPDIR/imgfs/3
 
     info "Copying Fedora files (progress status sucks)..."
     rsync -a --info=progress2 $TMPDIR/imgfs/3/* $TMPDIR/root/
-    rsync -a --info=progress2 $TMPDIR/imgfs/2/* $TMPDIR/root/boot/
 
     info "copy kernel..."
     rsync -a $TMPDIR/manjaro/boot/ $TMPDIR/root/boot/
@@ -177,12 +175,10 @@ install_fedora() {
     rm -rf $TMPDIR/manjaro
 
     info "Unmounting Fedora media..."
-    umount "$LOOP"p2
     umount "$LOOP"p3
     losetup -d $LOOP
 
     info "Deleting temp directories..."
-    rmdir $TMPDIR/imgfs/2
     rmdir $TMPDIR/imgfs/3
     rmdir $TMPDIR/imgfs
 
@@ -192,7 +188,7 @@ upgrade_fedora() {
     msg "Upgrade Fedora and add packages..."
 
     info "Remove uneeded packages..."
-    $NSPAWN $TMPDIR/root dnf remove kernel-* grub2-* bcm283x-firmware shim-aa64 --noautoremove 1> /dev/null 2>&1
+    $NSPAWN $TMPDIR/root dnf remove -y kernel-* grub2-* bcm283x-firmware shim-aa64 --noautoremove 1> /dev/null 2>&1
     info "Upgrade Fedora..."
     mkdir -p $TMPDIR/dnf
     mount -o bind $TMPDIR/dnf $TMPDIR/root/var/cache/dnf
