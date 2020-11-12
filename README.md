@@ -42,6 +42,9 @@ sudo bash ./fedora-installer [<url>]
 ## Known Issues:
 * Because `dialog` is weird, the script needs to be run in `bash`.
 * First boot can take som time for SELINUX autorelabel to run.
+* systemd-nspawn --resolv-conf has been buggy. If you have issues you can try,  
+  --resolv-conf=auto --resolv-conf=copy-host or --bind-ro=/etc/resolv.conf  
+  It all depends how resolv.conf is managed on host and in image.  
 
 ## Things to do/improve
 

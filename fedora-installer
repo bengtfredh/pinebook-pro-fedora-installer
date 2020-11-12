@@ -1,7 +1,7 @@
 #! /bin/bash
 
 # *****************************
-#       Version 2.0.11
+#       Version 3.0
 # *****************************
 
 
@@ -52,7 +52,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Sanity checks for dependencies
-declare -a DEPENDNECIES=("sed" "rsync" "systemd-nspawn" "wget" "dialog" "bsdtar" "openssl" "awk" )
+declare -a DEPENDNECIES=( "sed" "rsync" "systemd-nspawn" "wget" "dialog" "bsdtar" "openssl" "awk" )
 
 for i in "${DEPENDNECIES[@]}"; do
   if ! [[ -f "/bin/$i" || -f "/sbin/$i" || -f "/usr/bin/$i" || -f "/usr/sbin/$i" ]] ; then
@@ -153,21 +153,20 @@ upgrade_fedora() {
 
     info "Remove uneeded packages..."
     $NSPAWN $TMPDIR/root dnf remove -y kernel kernel-core kernel-modules grub2-common grub2-efi-aa64 grub2-tools grub2-tools-extra grub2-tools-minimal grubby bcm283x-firmware shim-aa64 --noautoremove 1> /dev/null 2>&1
-    info "Clean /boot..."
     rm -rf $TMPDIR/root/boot/*
     info "Upgrade Fedora..."
     mkdir -p $TMPDIR/dnf
     mount -o bind $TMPDIR/dnf $TMPDIR/root/var/cache/dnf
     $NSPAWN $TMPDIR/root dnf upgrade -y --refresh
 
+    info "Install extra packages..."
+    $NSPAWN $TMPDIR/root dnf install -y acpid
+
     info "Enable copr/aptupdate/pinebook-pro..."
     $NSPAWN $TMPDIR/root dnf copr enable -y aptupdate/pinebook-pro
     $NSPAWN $TMPDIR/root dnf makecache
 
-    info "Install extra packages..."
-    $NSPAWN $TMPDIR/root dnf install -y acpid
-    
-    info "Install Pinebook Pro packages..."
+    info "Install Pinebook Pro copr packages..."
     $NSPAWN $TMPDIR/root dnf install -y kernel-pbp uboot-pinebookpro ap6256-firmware pbp-keyboard-hwdb pinebookpro-suspend pinebookpro-audio pinebookpro-network
     
     info "Enable services from packages..."
@@ -199,8 +198,8 @@ configure_fedora() {
 
     info "Update fstab with UUID..."
     # Edit fstab
-    echo "UUID=${ROOTUUID}  /   ext4    defaults        0       1"  > $TMPDIR/root/etc/fstab
-    echo "UUID=${BOOTUUID}  /boot   ext4    defaults        0       2" >> $TMPDIR/root/etc/fstab
+    echo "UUID=${ROOTUUID}	/	ext4	defaults	0 1"  > $TMPDIR/root/etc/fstab
+    echo "UUID=${BOOTUUID}	/boot	ext4	defaults	0 2" >> $TMPDIR/root/etc/fstab
 
     info "Set timezone..."
     $NSPAWN $TMPDIR/root ln -sf /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime 1> /dev/null 2>&1
@@ -256,13 +255,13 @@ prepare_card () {
     dd if=/dev/zero of=${SDCARD} bs=1M count=32 1> /dev/null 2>&1
 
     info "Partition $DEV_NAME"
-    info "Partition with efi, boot and root"
+    info "Partition with boot and root"
     echo -e "label:gpt\nunit:sectors\nfirst-lba:32768" | sfdisk ${SDCARD} 1> /dev/null 2>&1
     echo -e "n\n1\n32768\n+1G\nn\n2\n\n\nx\nA\n1\nr\nw" | fdisk ${SDCARD} 1> /dev/null 2>&1
 
     info "List partitions..."
     partprobe -s ${SDCARD}
-    fdisk -l ${SDCARD}
+    fdisk -l ${SDCARD} 1> /dev/null 2>&1
 }
 
 format_card () {
@@ -283,6 +282,24 @@ cleanup () {
     # Flash bootloader
     dd if=$TMPDIR/root/boot/idbloader.img of=${SDCARD} seek=64 conv=notrunc,fsync 1> /dev/null 2>&1
     dd if=$TMPDIR/root/boot/u-boot.itb of=${SDCARD} seek=16384 conv=notrunc,fsync 1> /dev/null 2>&1
+
+    info "Apply workaround for poor key import UI in PackageKit"
+    $NSPAWN $TMPDIR/root rm -f /var/lib/rpm/__db* 1> /dev/null 2>&1
+    $NSPAWN $TMPDIR/root rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-$(rpm --eval '%{fedora}')-$arch 1> /dev/null 2>&1
+    # "Packages within this ARM disk image"
+    $NSPAWN $TMPDIR/root rpm -qa --qf '%{size}\t%{name}-%{version}-%{release}.%{arch}\n' |sort -rn 1> /dev/null 2>&1
+    # Note that running rpm recreates the rpm db files which aren't needed or wanted
+    $NSPAWN $TMPDIR/root rm -f /var/lib/rpm/__db* 1> /dev/null 2>&1
+
+    info "Remove random seed, the new install should make it's own"
+    $NSPAWN $TMPDIR/root rm -f /var/lib/systemd/random-seed 1> /dev/null 2>&1
+    
+    info "Disabling tmpfs for /tmp."
+    $NSPAWN $TMPDIR/root systemctl mask tmp.mount 1> /dev/null 2>&1
+
+    info "Reset machine-id"
+    $NSPAWN $TMPDIR/root rm -f /etc/machine-id 1> /dev/null 2>&1
+    touch /etc/machine-id 1> /dev/null 2>&1
     	
     #clean up
     umount $TMPDIR/root/boot
