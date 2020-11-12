@@ -1,25 +1,24 @@
 # pinebook-pro-fedora-installer
 
-Scripts for installing Fedora aarch64 directly to SD/eMMC. You will get Manjaro kernel, rest is pure Fedora.
+Scripts for installing Fedora aarch64 directly to SD/eMMC. The script will add copr repository for some extra packages needed on Pinebook Pro.
+copr: https://copr.fedorainfracloud.org/coprs/aptupdate/pinebook-pro/
+source: https://github.com/bengtfredh/pinebook-pro-copr.git
+
+Script will install kernel-pbp from copr which is a vanilla kernel patched for Pinebook Pro with Manjaro config merged on Fedora config. You can chose to switch to linux-manjaro from same copr which is a rpm packaged Manjaro aarch64 kernel. Biggest difference is, kernel-pbp have SELINUX and btrfs build in kernel, linux-manjaro have no SELINUX and have btrfs as module.
 
 This script is "interactive". Meaning that it asks you questions when run to customize your install. Like username, password etc.
 
-Runtime is approx 40-50 minutes for Fedora 32 Workstation depending on your bandwidth and SD card speed. Fedora update is what takes longest time.
+Runtime is approx 40-50 minutes for Fedora Workstation depending on your bandwidth and SD card speed. Fedora update is what takes longest time.
 
 ## Dependencies:
 * systemd-container (systemd-nspawn)
 * bash
-* coreutils
 * wget
-* git
-* systemd
 * dialog
-* parted
 * libarchive
 * qemu-user-static (archlinux: binfmt-qemu-static)
 * openssl
 * gawk
-* dosfstools
 * polkit
 
 ## Installing and using from github:
@@ -42,30 +41,19 @@ sudo bash ./fedora-installer [<url>]
 
 ## Known Issues:
 * Because `dialog` is weird, the script needs to be run in `bash`.
-* Reboot make Pinebook to hang when start up. Use poweroff and turn on.
+* First boot can take som time for SELINUX autorelabel to run.
 
 ## Things to do/improve
 
-- [ ] Use Fedora kernel - default kernel will not boot - maybe build custom.
-- [X] ~~Get sound to work better, can only get low volume - change setting in overlay~~
-- [X] ~~Change disk layout - I guess @daniel-thompson have a more sane layout~~
-- [X] ~~Add support for update-uboot - need overlays for script~~
-- [X] ~~Test update-uboot~~
-- [X] ~~Create kernel upgrade script~~
-- [ ] Add u-boot gfx - I have been testing this and it is too buggy by now. I like https://github.com/pcm720/u-boot-build-scripts/releases.
-- [ ] Change disklayout and filesystem to btrfs.
-- [ ] Change source to smaller image (container.tar.zx) and dnf an installation.
-- [X] ~~Create copr repo and replace overlay and Manjaro part of the script~~ https://github.com/bengtfredh/pinebook-pro-copr
-
-## Usage
-Command for update uboot from Fedora:
-```
-update-uboot --target=pinebook-pro-rk3399 --media=/dev/mmcblkX
-```
-
-## Upgrade kernel
-Script /usr/bin/kernel-upgrade<BR>
-Become root and run `kernel-upgrade` . Script will upgrade kernel on local installation.
+* [x] ~~Use Fedora kernel - default kernel will not boot - maybe build custom.~~ https://github.com/bengtfredh/pinebook-pro-copr/kernel-pbp/
+* [x] ~~Get sound to work better, can only get low volume - change setting in overlay~~
+* [x] ~~Add support for update-uboot - need overlays for script~~
+* [x] ~~Test update-uboot~~
+* [x] ~~Create kernel upgrade script~~
+* [ ] Add u-boot gfx - I have been testing this and it is too buggy by now. I like https://github.com/pcm720/u-boot-build-scripts/releases.
+* [ ] Change disklayout and filesystem to btrfs.
+* [ ] Change source to smaller image (container.tar.zx) and dnf an installation.
+* [x] ~~Create copr repo and replace overlay and Manjaro part of the script~~ https://github.com/bengtfredh/pinebook-pro-copr
 
 ## Supported Devices:
 * Pinebook Pro
@@ -95,7 +83,7 @@ Run the script pointing to /dev/loopX.
 This script **should** be distro-agnostic, which means you can install *pinebook-pro-fedora-installer* from **any** distro, as long as the dependencies are met.
   
 ## Credits
-Inspiration and code parts from:<BR>
-https://gitlab.manjaro.org/manjaro-arm/applications/manjaro-arm-installer<BR>
-https://github.com/nikhiljha/pp-fedora-sdsetup<BR>
+Inspiration and code parts from:
+https://gitlab.manjaro.org/manjaro-arm/applications/manjaro-arm-installer
+https://github.com/nikhiljha/pp-fedora-sdsetup
 https://github.com/daniel-thompson/pinebook-pro-debian-installer.git
