@@ -1,8 +1,8 @@
 # pinebook-pro-fedora-installer
 
-Scripts for installing Fedora aarch64 directly to SD/eMMC. The script will add copr repository for some extra packages needed on Pinebook Pro.
-copr: https://copr.fedorainfracloud.org/coprs/aptupdate/pinebook-pro/
-source: https://github.com/bengtfredh/pinebook-pro-copr.git
+Scripts for installing Fedora aarch64 directly to SD/eMMC. The script will add copr repository for some extra packages needed on Pinebook Pro.  
+copr: https://copr.fedorainfracloud.org/coprs/aptupdate/pinebook-pro/  
+source: https://github.com/bengtfredh/pinebook-pro-copr.git  
 
 Script will install kernel-pbp from copr which is a vanilla kernel patched for Pinebook Pro with Manjaro config merged on Fedora config. You can chose to switch to linux-manjaro from same copr which is a rpm packaged Manjaro aarch64 kernel. Biggest difference is, kernel-pbp have SELINUX and btrfs build in kernel, linux-manjaro have no SELINUX and have btrfs as module.
 
@@ -83,7 +83,7 @@ Run the script pointing to /dev/loopX.
 This script **should** be distro-agnostic, which means you can install *pinebook-pro-fedora-installer* from **any** distro, as long as the dependencies are met.
   
 ## Credits
-Inspiration and code parts from:
-https://gitlab.manjaro.org/manjaro-arm/applications/manjaro-arm-installer
-https://github.com/nikhiljha/pp-fedora-sdsetup
-https://github.com/daniel-thompson/pinebook-pro-debian-installer.git
+Inspiration and code parts from:  
+https://gitlab.manjaro.org/manjaro-arm/applications/manjaro-arm-installer  
+https://github.com/nikhiljha/pp-fedora-sdsetup  
+https://github.com/daniel-thompson/pinebook-pro-debian-installer.git  
