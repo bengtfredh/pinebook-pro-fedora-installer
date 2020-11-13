@@ -313,16 +313,16 @@ else
     info "Create btrfs subvolumes..."
     btrfs subvolume create $TMPDIR/root/root 1> /dev/null 2>&1
     btrfs subvolume create $TMPDIR/root/home 1> /dev/null 2>&1
-    umount $TMPDIR/fedora || exit
+    umount $TMPDIR/root || exit
     sleep 1
     info "Mount all partitions..."
     mount -t btrfs -o subvol=root ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
     sleep 1
-    mkdir -p $TMPDIR/fedora/home
+    mkdir -p $TMPDIR/root/home
     mount -t btrfs -o subvol=home ${SDCARD}${SDDEV}2 $TMPDIR/root/home  || exit
     sleep 1
     mkdir -p $TMPDIR/root/boot
-    mount ${SDCARD}${SDDEV}1 $TMPDIR/fedora/boot  || exit
+    mount ${SDCARD}${SDDEV}1 $TMPDIR/root/boot  || exit
     sleep 1
 fi
 }
