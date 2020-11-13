@@ -40,6 +40,7 @@ DEV_NAME=""
 TIMEZONE=""
 LOCALE=""
 HOSTNAME=""
+DISKLAYOUT=""
 
 # check if root
 if [ "$EUID" -ne 0 ]; then
@@ -52,7 +53,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Sanity checks for dependencies
-declare -a DEPENDNECIES=( "sed" "rsync" "systemd-nspawn" "wget" "dialog" "bsdtar" "openssl" "awk" )
+declare -a DEPENDNECIES=( "btrfs" "sed" "rsync" "systemd-nspawn" "wget" "dialog" "bsdtar" "openssl" "awk" )
 
 for i in "${DEPENDNECIES[@]}"; do
   if ! [[ -f "/bin/$i" || -f "/sbin/$i" || -f "/usr/bin/$i" || -f "/usr/sbin/$i" ]] ; then
@@ -113,7 +114,7 @@ prepare_media() {
     # fetch and extract fedora image
     if [ ! -f "$MEDIADIR/$FEDORARAW" ]; then
       info "Downloading Fedora Image..."
-      wget -q --show-progress --progress=bar:force:noscroll $FEDORAURL --output-document $MEDIADIR/$FEDORARAW.xz
+      wget -q --show-progress --progress=bar:force:noscroll $FEDORAURL --output-document $MEDIADIR/$FEDORARAW.xz || exit
       info "Decompress Fedora Image..."
       xz --decompress $MEDIADIR/$FEDORARAW.xz
     fi
@@ -167,8 +168,13 @@ upgrade_fedora() {
     $NSPAWN $TMPDIR/root dnf makecache
 
     info "Install Pinebook Pro copr packages..."
+if [[ "$KERNELVER" = "kernel-pbp" ]]; then
     $NSPAWN $TMPDIR/root dnf install -y kernel-pbp uboot-pinebookpro ap6256-firmware pbp-keyboard-hwdb pinebookpro-suspend pinebookpro-audio pinebookpro-network
-    
+else
+    # KERNELVER=linux-majaro
+    $NSPAWN $TMPDIR/root dnf install -y linux-manjaro uboot-pinebookpro ap6256-firmware pbp-keyboard-hwdb pinebookpro-suspend pinebookpro-audio pinebookpro-network
+fi
+
     info "Enable services from packages..."
     $NSPAWN $TMPDIR/root systemctl enable acpid.service
 
@@ -180,15 +186,16 @@ upgrade_fedora() {
 	
 configure_fedora() {
     msg "Configure Fedora..."
-    info "Run SELinux autorelabel all files first boot..."
+    info "Run SELinux autorelabel first boot..."
     touch $TMPDIR/root/.autorelabel
 
-    info "Update extlinux.conf with UUID..."
     # Get UUID
     BOOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}1")
     ROOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}2")
-    
+
+if [[ "$DISKLAYOUT" = "ext4" ]]; then
     # Configure extlinux.conf
+    info "Update extlinux.conf with UUID..."
     mkdir ${TMPDIR}/root/boot/extlinux/ -p
     echo "LABEL Fedora PinebookPro" > ${TMPDIR}/root/boot/extlinux/extlinux.conf 
     echo "KERNEL /Image" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
@@ -200,6 +207,23 @@ configure_fedora() {
     # Edit fstab
     echo "UUID=${ROOTUUID}	/	ext4	defaults	0 1"  > $TMPDIR/root/etc/fstab
     echo "UUID=${BOOTUUID}	/boot	ext4	defaults	0 2" >> $TMPDIR/root/etc/fstab
+else
+    # DISKLAYOUT = btrfs
+    info "Update extlinux.conf with UUID..."
+    # Configure extlinux.conf
+    mkdir ${TMPDIR}/root/boot/extlinux/ -p
+    echo "LABEL Fedora PinebookPro" > ${TMPDIR}/root/boot/extlinux/extlinux.conf 
+    echo "KERNEL /Image" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
+    echo "FDT /dtbs/rockchip/rk3399-pinebook-pro.dtb" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
+    echo "INITRD /initramfs-linux.img" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
+    echo "APPEND console=tty1 console=ttyS2,1500000 root=UUID=${ROOTUUID} rw rootflags=subvol=root rhgb quiet" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
+ 
+    info "Update fstab with UUID..."
+    # Edit fstab
+    echo "UUID=${ROOTUUID}	/   		btrfs	subvol=root			0 0" > $TMPDIR/root/etc/fstab
+    echo "UUID=${BOOTUUID}	/boot		ext4	defaults			1 2" >> $TMPDIR/root/etc/fstab
+    echo "UUID=${ROOTUUID}	/home   	btrfs	subvol=home			0 0" >> $TMPDIR/root/etc/fstab
+fi
 
     info "Set timezone..."
     $NSPAWN $TMPDIR/root ln -sf /usr/share/zoneinfo/"$TIMEZONE" /etc/localtime 1> /dev/null 2>&1
@@ -219,7 +243,10 @@ configure_fedora() {
     echo "$HOSTNAME" > $TMPDIR/root/etc/hostname
 
     info "Fix update-uboot for pinebook-pro-rk3399"
+    # Fixed in arm-image-installer => 3.0
+if [ ! -f "$TMPDIR/root/usr/share/arm-image-installer/boards.d/pinebook-pro-rk3399" ]; then
     ln -s ../socs.d/Rockchips-ARMv8 $TMPDIR/root/usr/share/arm-image-installer/boards.d/pinebook-pro-rk3399
+fi
 
     info "Setting up users..."
     #setup users
@@ -265,16 +292,39 @@ prepare_card () {
 }
 
 format_card () {
-    info "Format partitions on $DEV_NAME"
-        mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}1" -L "${DEV_NAME}-BOOT" 1> /dev/null 2>&1
-        mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}2" -L "${DEV_NAME}-ROOT" 1> /dev/null 2>&1
-	sleep 1
-        mkdir -p $TMPDIR/root
-        mount ${SDCARD}${SDDEV}2 $TMPDIR/root
-        sleep 1
-        mkdir -p $TMPDIR/root/boot
-        mount ${SDCARD}${SDDEV}1 $TMPDIR/root/boot
-        sleep 1
+info "Format partitions on $DEV_NAME"
+if [[ "$DISKLAYOUT" = "ext4" ]]; then
+    mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}1" -L "${DEV_NAME}-boot" 1> /dev/null 2>&1
+    mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}2" -L "${DEV_NAME}-root" 1> /dev/null 2>&1
+    sleep 1
+    mkdir -p $TMPDIR/root
+    mount ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
+    sleep 1
+    mkdir -p $TMPDIR/root/boot
+    mount ${SDCARD}${SDDEV}1 $TMPDIR/root/boot || exit
+    sleep 1
+else
+    # DISKLAYOUT = btrfs
+    mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}1" -L "${DEV_NAME}-boot" 1> /dev/null 2>&1
+    mkfs.btrfs -f "${SDCARD}${SDDEV}2" -L "<FS_TREE>" 1> /dev/null 2>&1
+    mkdir -p $TMPDIR/fedora
+    mount ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
+    sleep 1
+    info "Create btrfs subvolumes..."
+    btrfs subvolume create $TMPDIR/root/root 1> /dev/null 2>&1
+    btrfs subvolume create $TMPDIR/root/home 1> /dev/null 2>&1
+    umount $TMPDIR/fedora || exit
+    sleep 1
+    info "Mount all partitions..."
+    mount -t btrfs -o subvol=root ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
+    sleep 1
+    mkdir -p $TMPDIR/fedora/home
+    mount -t btrfs -o subvol=home ${SDCARD}${SDDEV}2 $TMPDIR/root/home  || exit
+    sleep 1
+    mkdir -p $TMPDIR/root/boot
+    mount ${SDCARD}${SDDEV}1 $TMPDIR/fedora/boot  || exit
+    sleep 1
+fi
 }
 
 cleanup () {
@@ -311,7 +361,7 @@ cleanup () {
 }
 
 if [ ! -z "$EDITION" ]; then
-	USER=$(dialog --clear --title "Fedora ARM Installer" \
+	USER=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
 	--inputbox "Enter the username you want:
 (usernames most be all lowercase)" 8 50 \
 	3>&1 1>&2 2>&3 3>&-)
@@ -327,7 +377,7 @@ fi
 
 if [ ! -z "$USER" ]
 then
-FULLNAME=$(dialog --clear --title "Fedora ARM Installer" \
+FULLNAME=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
     --inputbox "Enter desired Full Name for $USER:" 8 50 \
         3>&1 1>&2 2>&3 3>&- \
 	)
@@ -337,7 +387,7 @@ else
 fi
 
 if [ ! -z "$FULLNAME" ]; then
-	PASSWORD=$(dialog --clear --title "Fedora ARM Installer" \
+	PASSWORD=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
 	--insecure --passwordbox "Enter new Password for $USER:" 8 50 \
 	3>&1 1>&2 2>&3 3>&- \
 	)
@@ -347,7 +397,7 @@ else
 fi
 
 if [ ! -z "$PASSWORD" ]; then
-	CONFIRMPASSWORD=$(dialog --clear --title "Fedora ARM Installer" \
+	CONFIRMPASSWORD=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
 	--insecure --passwordbox "Confirm new Password for $USER:" 8 50 \
 	3>&1 1>&2 2>&3 3>&- \
 	)
@@ -363,7 +413,7 @@ if [[ "$PASSWORD" != "$CONFIRMPASSWORD" ]]; then
 fi
 
 if [ ! -z "$CONFIRMPASSWORD" ]; then
-	ROOTPASSWORD=$(dialog --clear --title "Fedora ARM Installer" \
+	ROOTPASSWORD=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
 	--insecure --passwordbox "Enter new Root Password:" 8 50 \
 	3>&1 1>&2 2>&3 3>&- \
 	)
@@ -373,7 +423,7 @@ else
 fi
 
 if [ ! -z "$ROOTPASSWORD" ]; then
-	CONFIRMROOTPASSWORD=$(dialog --clear --title "Fedora ARM Installer" \
+	CONFIRMROOTPASSWORD=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
 	--insecure --passwordbox "Confirm new Root Password:" 8 50 \
 	3>&1 1>&2 2>&3 3>&- \
 	)
@@ -398,7 +448,7 @@ then
 		let i=$i+1
 		W+=($line "")
 	done < <( lsblk -dn -o NAME )
-	SDCARD=$(dialog --title "Fedora ARM Installer" \
+	SDCARD=$(dialog --title "Fedora Pinebook Pro Installer" \
 	--menu "Choose your SDCard/eMMC/USB - Be sure the correct drive is selected! 
 WARNING! This WILL destroy the data on it!" 20 50 10 \
 	"${W[@]}" 3>&2 2>&1 1>&3)
@@ -421,15 +471,38 @@ else
   exit 1
 fi
 
-
 if [ ! -z "$SDCARD" ]; then
+    DISKLAYOUT=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
+        --menu "Choose a disk layout:" 20 75 10 \
+        "ext4"     "ext4 on root and boot" \
+        "btrfs"    "btrfs on root and ext4 boot" \
+        3>&1 1>&2 2>&3 3>&-)
+
+else
+	clear
+	exit 1
+fi
+
+if [ ! -z "$DISKLAYOUT" ]; then
+    KERNELVER=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
+        --menu "Choose Kernel:" 20 75 10 \
+        "kernel-pbp"     "Vanilla with fedora config patched for pbp" \
+        "linux-majaro"   "Manjaro kernel repacked in rpm (no SELINUX)" \
+        3>&1 1>&2 2>&3 3>&-)
+
+else
+        clear
+        exit 1
+fi
+
+if [ ! -z "$KERNELVER" ]; then
 	let i=0
 	W=()
 	while read -r line; do
 		let i=$i+1
 		W+=($line "")
 	done < <( timedatectl list-timezones )
-	TIMEZONE=$(dialog --clear --title "Fedora ARM Installer" \
+	TIMEZONE=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
 	--menu "Choose your timezone!" 20 50 15 \
 	"${W[@]}" 3>&1 1>&2 2>&3 3>&- \
 	)
@@ -446,7 +519,7 @@ if [ ! -z "$TIMEZONE" ]; then
 		let i=$i+1
 		W+=($line "")
 	done < <( localectl list-locales )
-	LOCALE=$(dialog --clear --title "Fedora ARM Installer" \
+	LOCALE=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
 		--menu "Choose your locale!" 20 50 15 \
 		"${W[@]}" 3>&1 1>&2 2>&3 3>&- \
 		)
@@ -462,7 +535,7 @@ if [ ! -z "$LOCALE" ]; then
 		let i=$i+1
 		W+=($line "")
 	done < <( localectl list-keymaps )
-	CLIKEYMAP=$(dialog --clear --title "Fedora ARM Installer" \
+	CLIKEYMAP=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
 		--menu "Choose your TTY keyboard layout:" 20 50 15 \
 		"${W[@]}" 3>&1 1>&2 2>&3 3>&- \
 	)
@@ -478,7 +551,7 @@ if [ ! -z "$CLIKEYMAP" ]; then
 		let i=$i+1
 		W+=($line "")
 	done < <( localectl list-x11-keymap-layouts )
-	X11KEYMAP=$(dialog --clear --title "Manjaro ARM Installer" \
+	X11KEYMAP=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
 		--menu "Choose your X11 keyboard layout:" 20 50 15 \
 		"${W[@]}" 3>&1 1>&2 2>&3 3>&- \
 	)
@@ -488,7 +561,7 @@ else
 fi
 
 if [ ! -z "$CLIKEYMAP" ]; then
-	HOSTNAME=$(dialog --clear --title "Fedora ARM Installer" \
+	HOSTNAME=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
 	--inputbox "Enter desired hostname (fqdn) for this system:" 8 50 \
 	3>&1 1>&2 2>&3 3>&- \
 	)
@@ -498,7 +571,7 @@ else
 fi
 
 if [ ! -z "$HOSTNAME" ]; then
-	dialog --clear --title "Fedora ARM Installer" \
+	dialog --clear --title "Fedora Pinebook Pro Installer" \
     --yesno "Is the below information correct:
     Device = $DEVICE
     Edition = $EDITION
