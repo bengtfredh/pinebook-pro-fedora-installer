@@ -352,6 +352,7 @@ cleanup () {
     touch /etc/machine-id 1> /dev/null 2>&1
     	
     #clean up
+    umount $TMPDIR/root/home 1> /dev/null 2>&1
     umount $TMPDIR/root/boot
     umount $TMPDIR/root
     partprobe $SDCARD 1> /dev/null 2>&1
