@@ -307,7 +307,7 @@ else
     # DISKLAYOUT = btrfs
     mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}1" -L "${DEV_NAME}-boot" 1> /dev/null 2>&1
     mkfs.btrfs -f "${SDCARD}${SDDEV}2" -L "<FS_TREE>" 1> /dev/null 2>&1
-    mkdir -p $TMPDIR/fedora
+    mkdir -p $TMPDIR/root
     mount ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
     sleep 1
     info "Create btrfs subvolumes..."
