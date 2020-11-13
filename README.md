@@ -23,11 +23,6 @@ Runtime is approx 40-50 minutes for Fedora Workstation depending on your bandwid
 
 ## Installing and using from github:
 To use this script, please make sure that the following is correct:
-
-* Some Fedora mirrors are veeeery slow - give url to known good mirror as parameter i.e.
-```
-bash ./fedora-installer https://fedora.uib.no/fedora/linux/releases/32/Workstation/aarch64/images/Fedora-Workstation-32-1.6.aarch64.raw.xz
-```
 * an **empty** SD/eMMC card with at least 16 GB storage is plugged in, but not mounted.
 * that your user account has `sudo` rights.
 
@@ -38,7 +33,10 @@ cd pinebook-pro-fedora-installer
 chmod +x fedora-installer
 sudo bash ./fedora-installer [<url>]
 ```
-
+Some Fedora mirrors are veeeery slow - give url to known good mirror as parameter i.e.
+```
+bash ./fedora-installer https://fedora.uib.no/fedora/linux/releases/32/Workstation/aarch64/images/Fedora-Workstation-32-1.6.aarch64.raw.xz
+```
 ## Known Issues:
 * Because `dialog` is weird, the script needs to be run in `bash`.
 * First boot can take som time for SELINUX autorelabel to run.
@@ -47,7 +45,6 @@ sudo bash ./fedora-installer [<url>]
   It all depends how resolv.conf is managed on host and in image.  
 
 ## Things to do/improve
-
 * [x] ~~Use Fedora kernel - default kernel will not boot - maybe build custom.~~ https://github.com/bengtfredh/pinebook-pro-copr/kernel-pbp/
 * [x] ~~Get sound to work better, can only get low volume - change setting in overlay~~
 * [x] ~~Add support for update-uboot - need overlays for script~~
@@ -79,14 +76,14 @@ losetup /dev/loopX myimage.img
 ```
 Run the script pointing to /dev/loopX.
 * You need to flash image with a tool that preserve UUID like dd.
-* You should expand and grow root partition/filesystem.
+* You should expand and grow root partition/filesystem while offline.
 
 ## Other notes:
 
 This script **should** be distro-agnostic, which means you can install *pinebook-pro-fedora-installer* from **any** distro, as long as the dependencies are met.
   
 ## Credits
-Inspiration and code parts from:  
+Inspiration from:  
 https://gitlab.manjaro.org/manjaro-arm/applications/manjaro-arm-installer  
 https://github.com/nikhiljha/pp-fedora-sdsetup  
 https://github.com/daniel-thompson/pinebook-pro-debian-installer.git  
