@@ -169,10 +169,10 @@ upgrade_fedora() {
 
     info "Install Pinebook Pro copr packages..."
 if [[ "$KERNELVER" = "kernel-pbp" ]]; then
-    $NSPAWN $TMPDIR/root dnf install -y kernel-pbp uboot-pinebookpro ap6256-firmware pbp-keyboard-hwdb pinebookpro-suspend pinebookpro-audio pinebookpro-network
+    $NSPAWN $TMPDIR/root dnf install -y kernel-pbp uboot-pinebookpro pinebookpro-extlinux ap6256-firmware pbp-keyboard-hwdb pinebookpro-suspend pinebookpro-audio pinebookpro-network
 else
     # KERNELVER=linux-majaro
-    $NSPAWN $TMPDIR/root dnf install -y linux-manjaro uboot-pinebookpro ap6256-firmware pbp-keyboard-hwdb pinebookpro-suspend pinebookpro-audio pinebookpro-network
+    $NSPAWN $TMPDIR/root dnf install -y linux-manjaro uboot-pinebookpro pinebookpro-extlinux ap6256-firmware pbp-keyboard-hwdb pinebookpro-suspend pinebookpro-audio pinebookpro-network
 fi
 
     info "Enable services from packages..."
