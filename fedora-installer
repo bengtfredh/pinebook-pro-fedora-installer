@@ -271,9 +271,9 @@ fi
 prepare_card () {
     msg "Getting $SDCARD ready for $DEVICE..."
     # umount and clear SD card
-    umount ${SDCARD}$* 1> /dev/null 2>&1
-    umount ${SDCARD}$* 1> /dev/null 2>&1
-    umount ${SDCARD}$* 1> /dev/null 2>&1
+    umount ${SDCARD}* 1> /dev/null 2>&1
+    umount ${SDCARD}* 1> /dev/null 2>&1
+    umount ${SDCARD}* 1> /dev/null 2>&1
     wipefs -a ${SDCARD} 1> /dev/null 2>&1
     echo -e "label:gpt" | sfdisk ${SDCARD} 1> /dev/null 2>&1
 
