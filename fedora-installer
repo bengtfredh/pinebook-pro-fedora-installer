@@ -18,6 +18,7 @@ CARCH=$(uname -m)
 # --resolv-conf=auto --resolv-conf=copy-host or --bind-ro=/etc/resolv.conf
 # It all depends how resolv.conf is managed on host and in image.
 NSPAWN='systemd-nspawn -q --resolv-conf=auto --timezone=off -D'
+#NSPAWN='systemd-nspawn -q --bind-ro=/etc/resolv.conf --timezone=off -D'
 LOOP=$(losetup -f)
 
 # set colorscheme
@@ -134,7 +135,11 @@ install_fedora() {
     mount "$LOOP"p3 $TMPDIR/imgfs/3
 
     info "Copying Fedora files (progress status sucks)..."
+if [[ $(blkid -s TYPE -o value "$LOOP"p3) = btrfs ]]; then
+    rsync -a --info=progress2 $TMPDIR/imgfs/3/root/* $TMPDIR/root/
+else
     rsync -a --info=progress2 $TMPDIR/imgfs/3/* $TMPDIR/root/
+fi
     rsync -a --info=progress2 $TMPDIR/imgfs/2/* $TMPDIR/root/boot/
 
     info "Unmounting Fedora media..."
