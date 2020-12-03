@@ -1,5 +1,16 @@
 # pinebook-pro-fedora-installer
+* [General info](#general-info)
+* [Dependencies](#dependencies)
+* [Usage](#usage)
+* [Known Issues](#known-issues)
+* [Things to do](#things-to-do)
+* [Supported Devices](#supported-devices)
+* [Supported Editions](#supported-editions)
+* [To create image](#to-create-image)
+* [Other notes](#other-notes)
+* [Credits](#credits)
 
+## General info
 Scripts for installing Fedora aarch64 directly to SD/eMMC. The script will add copr repository for some extra packages needed on Pinebook Pro.  
 copr: https://copr.fedorainfracloud.org/coprs/aptupdate/pinebook-pro/  
 source: https://github.com/bengtfredh/pinebook-pro-copr.git  
@@ -21,7 +32,7 @@ Runtime is approx 40-50 minutes for Fedora Workstation depending on your bandwid
 * gawk
 * polkit
 
-## Installing and using from github:
+## Usage:
 To use this script, please make sure that the following is correct:
 * an **empty** SD/eMMC card with at least 16 GB storage is plugged in, but not mounted.
 * that your user account has `sudo` rights.
@@ -44,7 +55,7 @@ bash ./fedora-installer https://fedora.uib.no/fedora/linux/releases/32/Workstati
   --resolv-conf=auto --resolv-conf=copy-host or --bind-ro=/etc/resolv.conf  
   It all depends how resolv.conf is managed on host and in image.  
 
-## Things to do/improve
+## Things to do:
 * [x] ~~Use Fedora kernel - default kernel will not boot - maybe build custom.~~ https://github.com/bengtfredh/pinebook-pro-copr/kernel-pbp/
 * [x] ~~Get sound to work better, can only get low volume - change setting in overlay~~
 * [x] ~~Add support for update-uboot - need overlays for script~~
@@ -58,7 +69,7 @@ bash ./fedora-installer https://fedora.uib.no/fedora/linux/releases/32/Workstati
 ## Supported Devices:
 * Pinebook Pro
 
-## Supported Editions / Desktops:
+## Supported Editions:
 * Fedora Workstation (default)
 * Fedora Minimal (Add full url as parameter to script)
 Example:
@@ -68,7 +79,8 @@ bash ./fedora-installer https://mirrors.dotsrc.org/fedora-buffet/fedora-secondar
 
 There is no reason why this script should not work with other editions of Fedora. Just give url as maramater when script run. Script is tested with Fedora Workstation and Minimal.
 
-## To create image you later can dd to mmc/emmc/nvme
+## To create image:
+To create image you later can dd to mmc/emmc/nvme
 Prepare an image by running following:
 ```
 fallocate -l 10GiB myimage.img
