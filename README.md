@@ -80,7 +80,7 @@ bash ./fedora-installer https://mirrors.dotsrc.org/fedora-buffet/fedora-secondar
 There is no reason why this script should not work with other editions of Fedora. Just give url as maramater when script run. Script is tested with Fedora Workstation and Minimal.
 
 ## To create image:
-To create image you later can dd to mmc/emmc/nvme
+To create image you later can dd to mmc/emmc/nvme  
 Prepare an image by running following:
 ```
 fallocate -l 10GiB myimage.img
@@ -89,6 +89,10 @@ losetup /dev/loopX myimage.img
 Run the script pointing to /dev/loopX.
 * You need to flash image with a tool that preserve UUID like dd.
 * You should expand and grow root partition/filesystem while offline.
+
+## Prebuild images
+I think the installer is better choice, because you are in control of what you install. But I have created some prebuild images for you. There is images with root on ext4 and on btrfs, see filename:  
+https://s3.fredhs.net/minio/pinebook-pro-image/
 
 ## Other notes:
 
