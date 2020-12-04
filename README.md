@@ -7,6 +7,7 @@
 * [Supported Devices](#supported-devices)
 * [Supported Editions](#supported-editions)
 * [To create image](#to-create-image)
+* [Prebuild images](#prebuild-images)
 * [Other notes](#other-notes)
 * [Credits](#credits)
 
