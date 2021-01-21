@@ -54,7 +54,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Sanity checks for dependencies
-declare -a DEPENDNECIES=( "btrfs" "sed" "rsync" "systemd-nspawn" "wget" "dialog" "bsdtar" "openssl" "awk" )
+declare -a DEPENDNECIES=( "btrfs" "sed" "rsync" "systemd-nspawn" "wget" "dialog" "bsdtar" "openssl" "awk" "parted" )
 
 for i in "${DEPENDNECIES[@]}"; do
   if ! [[ -f "/bin/$i" || -f "/sbin/$i" || -f "/usr/bin/$i" || -f "/usr/sbin/$i" ]] ; then
@@ -206,7 +206,7 @@ if [[ "$DISKLAYOUT" = "ext4" ]]; then
     echo "KERNEL /Image" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
     echo "FDT /dtbs/rockchip/rk3399-pinebook-pro.dtb" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
     echo "INITRD /initramfs-linux.img" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
-    echo "APPEND console=tty1 console=ttyS2,1500000 root=UUID=${ROOTUUID} rw rhgb quiet" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf
+    echo "APPEND console=tty1 console=ttyS2,1500000 root=UUID=${ROOTUUID} rw splash plymouth.ignore-serial-consoles rhgb quiet" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf
 
     info "Update fstab with UUID..."
     # Edit fstab
@@ -221,7 +221,7 @@ else
     echo "KERNEL /Image" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
     echo "FDT /dtbs/rockchip/rk3399-pinebook-pro.dtb" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
     echo "INITRD /initramfs-linux.img" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
-    echo "APPEND console=tty1 console=ttyS2,1500000 root=UUID=${ROOTUUID} rw rootflags=subvol=root rhgb quiet" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
+    echo "APPEND console=tty1 console=ttyS2,1500000 root=UUID=${ROOTUUID} rw rootflags=subvol=root splash plymouth.ignore-serial-consoles rhgb quiet" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
  
     info "Update fstab with UUID..."
     # Edit fstab
