@@ -42,6 +42,7 @@ TIMEZONE=""
 LOCALE=""
 HOSTNAME=""
 DISKLAYOUT=""
+DNFUPGRADE=""
 
 # check if root
 if [ "$EUID" -ne 0 ]; then
@@ -172,6 +173,10 @@ upgrade_fedora() {
 
     info "Install extra packages..."
     $NSPAWN $TMPDIR/root dnf install -y acpid
+
+    if [[ $FEDORAURL == *"Minimal"* ]]; then
+    $NSPAWN $TMPDIR/root dnf install -y NetworkManager-tui
+    fi
 
     info "Enable copr/aptupdate/pinebook-pro..."
     $NSPAWN $TMPDIR/root dnf copr enable -y aptupdate/pinebook-pro
