@@ -17,8 +17,8 @@ CARCH=$(uname -m)
 # systemd-nspawn --resolv-conf has been buggy. If you have issues you can try,
 # --resolv-conf=auto --resolv-conf=copy-host or --bind-ro=/etc/resolv.conf
 # It all depends how resolv.conf is managed on host and in image.
-NSPAWN='systemd-nspawn -q --resolv-conf=auto --timezone=off -D'
-#NSPAWN='systemd-nspawn -q --bind-ro=/etc/resolv.conf --timezone=off -D'
+#NSPAWN='systemd-nspawn -q --resolv-conf=auto --timezone=off -D'
+NSPAWN='systemd-nspawn -q --bind-ro=/etc/resolv.conf --timezone=off -D'
 LOOP=$(losetup -f)
 
 # set colorscheme
@@ -160,10 +160,15 @@ upgrade_fedora() {
     info "Remove packages not needed..."
     $NSPAWN $TMPDIR/root dnf remove -y kernel kernel-core kernel-modules grub2-* efi-filesystem bcm283x-firmware 1> /dev/null 2>&1
     rm -rf $TMPDIR/root/boot/*
-    info "Upgrade Fedora..."
     mkdir -p $TMPDIR/dnf
     mount -o bind $TMPDIR/dnf $TMPDIR/root/var/cache/dnf
+
+    if [[ "$DNFUPGRADE" = "yes" ]]; then
+    info "Upgrade Fedora..."
     $NSPAWN $TMPDIR/root dnf upgrade -y --refresh
+    else
+    info "No upgrade..."
+    fi
 
     info "Install extra packages..."
     $NSPAWN $TMPDIR/root dnf install -y acpid
@@ -505,6 +510,18 @@ else
 fi
 
 if [ ! -z "$KERNELVER" ]; then
+    DNFUPGRADE=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
+        --menu "Upgrade during install?" 20 75 10 \
+        "yes"  "Upgrade all to current version" \
+        "no"   "Install version from image" \
+        3>&1 1>&2 2>&3 3>&-)
+
+else
+        clear
+        exit 1
+fi
+
+if [ ! -z "$DNFUPGRADE" ]; then
 	let i=0
 	W=()
 	while read -r line; do
@@ -519,7 +536,6 @@ else
 	clear
 	exit 1
 fi
-
 
 if [ ! -z "$TIMEZONE" ]; then
 	let i=0
@@ -591,6 +607,7 @@ if [ ! -z "$HOSTNAME" ]; then
     SDCard/eMMC/USB = $SDCARD
     Disklayout = $DISKLAYOUT
     Kernel = $KERNELVER
+    Upgrade = $DNFUPGRADE
     Timezone = $TIMEZONE
     Locale = $LOCALE
     Keyboard layout = $CLIKEYMAP
