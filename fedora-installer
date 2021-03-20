@@ -1,12 +1,12 @@
 #! /bin/bash
 
 # *****************************
-#       Version 3.0
+#       Version 34.0
 # *****************************
 
 
 # Fedora image read url as parameter
-FEDORAURL=${1:-"https://download.fedoraproject.org/pub/fedora/linux/releases/32/Workstation/aarch64/images/Fedora-Workstation-32-1.6.aarch64.raw.xz"}
+FEDORAURL=${1:-"https://download.fedoraproject.org/pub/fedora/linux/development/34/Workstation/aarch64/images/Fedora-Workstation-34-20210319.n.0.aarch64.raw.xz"}
 FEDORARAW="$(basename -s .xz "${FEDORAURL}")"
 
 # Set globals
@@ -225,9 +225,9 @@ else
  
     info "Update fstab with UUID..."
     # Edit fstab
-    echo "UUID=${ROOTUUID}	/   		btrfs	subvol=root			0 0" > $TMPDIR/root/etc/fstab
+    echo "UUID=${ROOTUUID}	/   		btrfs	subvol=root,compress=zstd:1	0 0" > $TMPDIR/root/etc/fstab
     echo "UUID=${BOOTUUID}	/boot		ext4	defaults			1 2" >> $TMPDIR/root/etc/fstab
-    echo "UUID=${ROOTUUID}	/home   	btrfs	subvol=home			0 0" >> $TMPDIR/root/etc/fstab
+    echo "UUID=${ROOTUUID}	/home   	btrfs	subvol=home,compress=zstd:1	0 0" >> $TMPDIR/root/etc/fstab
 fi
 
     info "Set timezone..."
@@ -279,6 +279,9 @@ prepare_card () {
     umount ${SDCARD}* 1> /dev/null 2>&1
     umount ${SDCARD}* 1> /dev/null 2>&1
     umount ${SDCARD}* 1> /dev/null 2>&1
+    umount ${SDCARD}* 1> /dev/null 2>&1
+    umount ${SDCARD}* 1> /dev/null 2>&1
+    umount ${SDCARD}* 1> /dev/null 2>&1
     wipefs -a ${SDCARD} 1> /dev/null 2>&1
     echo -e "label:gpt" | sfdisk ${SDCARD} 1> /dev/null 2>&1
 
@@ -321,10 +324,10 @@ else
     umount $TMPDIR/root || exit
     sleep 1
     info "Mount all partitions..."
-    mount -t btrfs -o subvol=root ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
+    mount -t btrfs -o subvol=root,compress=zstd:1 ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
     sleep 1
     mkdir -p $TMPDIR/root/home
-    mount -t btrfs -o subvol=home ${SDCARD}${SDDEV}2 $TMPDIR/root/home  || exit
+    mount -t btrfs -o subvol=home,compress=zstd:1 ${SDCARD}${SDDEV}2 $TMPDIR/root/home  || exit
     sleep 1
     mkdir -p $TMPDIR/root/boot
     mount ${SDCARD}${SDDEV}1 $TMPDIR/root/boot  || exit
@@ -480,8 +483,8 @@ fi
 if [ ! -z "$SDCARD" ]; then
     DISKLAYOUT=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
         --menu "Choose a disk layout:" 20 75 10 \
-        "ext4"     "ext4 on root and boot" \
         "btrfs"    "btrfs on root and ext4 boot" \
+        "ext4"     "ext4 on root and boot" \
         3>&1 1>&2 2>&3 3>&-)
 
 else
