@@ -1,12 +1,14 @@
 #! /bin/bash
 
 # *****************************
-#       Version 34.0
+#       Version 34.0b
 # *****************************
 
-
 # Fedora image read url as parameter
-FEDORAURL=${1:-"https://download.fedoraproject.org/pub/fedora/linux/development/34/Workstation/aarch64/images/Fedora-Workstation-34-20210319.n.0.aarch64.raw.xz"}
+FEDORA_SOURCE=https://download.fedoraproject.org/pub/fedora/linux/development/34/Workstation/aarch64/images/
+FEDORA_FILE_VER=$(wget -q $FEDORA_SOURCE -O - | grep -Po '(?<=Fedora-Workstation-).*?(?=.aarch64)' | head -n 1)
+FEDORA_FILE=Fedora-Workstation-$FEDORA_FILE_VER.aarch64.raw.xz
+FEDORAURL=${1:-"${FEDORA_SOURCE}/${FEDORA_FILE}"}
 FEDORARAW="$(basename -s .xz "${FEDORAURL}")"
 
 # Set globals
@@ -159,7 +161,9 @@ upgrade_fedora() {
     msg "Upgrade Fedora and add packages..."
 
     info "Remove packages not needed..."
-    $NSPAWN $TMPDIR/root dnf remove -y kernel kernel-core kernel-modules grub2-* efi-filesystem bcm283x-firmware 1> /dev/null 2>&1
+    $NSPAWN $TMPDIR/root dnf remove -y kernel kernel-core kernel-modules 1> /dev/null 2>&1
+    $NSPAWN $TMPDIR/root dnf remove -y kernel bcm2835-firmware bcm283x-firmware bcm2711-firmware bcm283x-overlays 1> /dev/null 2>&1
+    $NSPAWN $TMPDIR/root rpm -e grubby grub2-common grub2-tools-extra grub2-tools-minimal os-prober grub2-efi-aa64 1> /dev/null 2>&1
     rm -rf $TMPDIR/root/boot/*
     mkdir -p $TMPDIR/dnf
     mount -o bind $TMPDIR/dnf $TMPDIR/root/var/cache/dnf
