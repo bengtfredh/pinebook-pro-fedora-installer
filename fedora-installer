@@ -162,8 +162,8 @@ upgrade_fedora() {
 
     info "Remove packages not needed..."
     $NSPAWN $TMPDIR/root dnf remove -y kernel kernel-core kernel-modules 1> /dev/null 2>&1
-    $NSPAWN $TMPDIR/root dnf remove -y kernel bcm2835-firmware bcm283x-firmware bcm2711-firmware bcm283x-overlays 1> /dev/null 2>&1
-    $NSPAWN $TMPDIR/root rpm -e grubby grub2-common grub2-tools-extra grub2-tools-minimal os-prober grub2-efi-aa64 1> /dev/null 2>&1
+    rm -f $TMPDIR/root/etc/dnf/protected.d/grub2-*
+    $NSPAWN $TMPDIR/root dnf remove -y grub2-* efi-filesystem bcm283x-firmware 1> /dev/null 2>&1
     rm -rf $TMPDIR/root/boot/*
     mkdir -p $TMPDIR/dnf
     mount -o bind $TMPDIR/dnf $TMPDIR/root/var/cache/dnf
