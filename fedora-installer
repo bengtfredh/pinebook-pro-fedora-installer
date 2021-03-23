@@ -120,7 +120,7 @@ prepare_media() {
       info "Downloading Fedora Image..."
       wget -q --show-progress --progress=bar:force:noscroll $FEDORAURL --output-document $MEDIADIR/$FEDORARAW.xz || exit
       info "Decompress Fedora Image..."
-      xz --decompress --threads=0 $MEDIADIR/$FEDORARAW.xz
+      xz --decompress $MEDIADIR/$FEDORARAW.xz
     fi
 }
 
