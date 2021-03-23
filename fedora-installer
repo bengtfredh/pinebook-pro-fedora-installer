@@ -175,8 +175,8 @@ upgrade_fedora() {
     info "No upgrade..."
     fi
 
-    info "Install extra packages..."
-    $NSPAWN $TMPDIR/root dnf install -y acpid
+    #info "Install extra packages..."
+    #$NSPAWN $TMPDIR/root dnf install -y acpid
 
     if [[ $FEDORAURL == *"Minimal"* ]]; then
     $NSPAWN $TMPDIR/root dnf install -y NetworkManager-tui
@@ -194,8 +194,8 @@ else
     $NSPAWN $TMPDIR/root dnf install -y linux-manjaro uboot-pinebookpro pinebookpro-extlinux ap6256-firmware pbp-keyboard-hwdb pinebookpro-suspend pinebookpro-audio pinebookpro-network
 fi
 
-    info "Enable services from packages..."
-    $NSPAWN $TMPDIR/root systemctl enable acpid.service
+    #info "Enable services from packages..."
+    #$NSPAWN $TMPDIR/root systemctl enable acpid.service
 
     info "Clear dnf cache..."
     umount $TMPDIR/root/var/cache/dnf 
