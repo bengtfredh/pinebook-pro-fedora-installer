@@ -1,14 +1,11 @@
 #! /bin/bash
 
 # *****************************
-#       Version 34.0b
+#       Version 33.0
 # *****************************
 
 # Fedora image read url as parameter
-FEDORA_SOURCE=https://download.fedoraproject.org/pub/fedora/linux/development/34/Workstation/aarch64/images/
-FEDORA_FILE_VER=$(wget -q $FEDORA_SOURCE -O - | grep -Po '(?<=Fedora-Workstation-).*?(?=.aarch64)' | head -n 1)
-FEDORA_FILE=Fedora-Workstation-$FEDORA_FILE_VER.aarch64.raw.xz
-FEDORAURL=${1:-"${FEDORA_SOURCE}/${FEDORA_FILE}"}
+FEDORAURL=${1:-"https://download.fedoraproject.org/pub/fedora/linux/releases/33/Workstation/aarch64/images/Fedora-Workstation-33-1.3.aarch64.raw.xz"}
 FEDORARAW="$(basename -s .xz "${FEDORAURL}")"
 
 # Set globals
