@@ -1,12 +1,11 @@
 #! /bin/bash
 
 # *****************************
-#       Version 3.0
+#       Version 33.0
 # *****************************
 
-
 # Fedora image read url as parameter
-FEDORAURL=${1:-"https://download.fedoraproject.org/pub/fedora/linux/releases/32/Workstation/aarch64/images/Fedora-Workstation-32-1.6.aarch64.raw.xz"}
+FEDORAURL=${1:-"https://download.fedoraproject.org/pub/fedora/linux/releases/33/Workstation/aarch64/images/Fedora-Workstation-33-1.3.aarch64.raw.xz"}
 FEDORARAW="$(basename -s .xz "${FEDORAURL}")"
 
 # Set globals
@@ -17,8 +16,8 @@ CARCH=$(uname -m)
 # systemd-nspawn --resolv-conf has been buggy. If you have issues you can try,
 # --resolv-conf=auto --resolv-conf=copy-host or --bind-ro=/etc/resolv.conf
 # It all depends how resolv.conf is managed on host and in image.
-NSPAWN='systemd-nspawn -q --resolv-conf=auto --timezone=off -D'
-#NSPAWN='systemd-nspawn -q --bind-ro=/etc/resolv.conf --timezone=off -D'
+#NSPAWN='systemd-nspawn -q --resolv-conf=auto --timezone=off -D'
+NSPAWN='systemd-nspawn -q --bind-ro=/etc/resolv.conf --timezone=off -D'
 LOOP=$(losetup -f)
 
 # set colorscheme
@@ -42,6 +41,7 @@ TIMEZONE=""
 LOCALE=""
 HOSTNAME=""
 DISKLAYOUT=""
+DNFUPGRADE=""
 
 # check if root
 if [ "$EUID" -ne 0 ]; then
@@ -158,15 +158,23 @@ upgrade_fedora() {
     msg "Upgrade Fedora and add packages..."
 
     info "Remove packages not needed..."
-    $NSPAWN $TMPDIR/root dnf remove -y kernel kernel-core kernel-modules grub2-* efi-filesystem bcm283x-firmware 1> /dev/null 2>&1
+    $NSPAWN $TMPDIR/root dnf remove -y kernel kernel-core kernel-modules 1> /dev/null 2>&1
+    rm -f $TMPDIR/root/etc/dnf/protected.d/grub2-*
+    $NSPAWN $TMPDIR/root dnf remove -y grub2-* efi-filesystem bcm283x-firmware 1> /dev/null 2>&1
     rm -rf $TMPDIR/root/boot/*
-    info "Upgrade Fedora..."
     mkdir -p $TMPDIR/dnf
     mount -o bind $TMPDIR/dnf $TMPDIR/root/var/cache/dnf
-    $NSPAWN $TMPDIR/root dnf upgrade -y --refresh
 
-    info "Install extra packages..."
-    $NSPAWN $TMPDIR/root dnf install -y acpid
+    if [[ "$DNFUPGRADE" = "yes" ]]; then
+    info "Upgrade Fedora..."
+    $NSPAWN $TMPDIR/root dnf upgrade -y --refresh
+    else
+    info "No upgrade..."
+    fi
+
+    if [[ $FEDORAURL == *"Minimal"* ]]; then
+    $NSPAWN $TMPDIR/root dnf install -y NetworkManager-tui
+    fi
 
     info "Enable copr/aptupdate/pinebook-pro..."
     $NSPAWN $TMPDIR/root dnf copr enable -y aptupdate/pinebook-pro
@@ -179,9 +187,6 @@ else
     # KERNELVER=linux-majaro
     $NSPAWN $TMPDIR/root dnf install -y linux-manjaro uboot-pinebookpro pinebookpro-extlinux ap6256-firmware pbp-keyboard-hwdb pinebookpro-suspend pinebookpro-audio pinebookpro-network
 fi
-
-    info "Enable services from packages..."
-    $NSPAWN $TMPDIR/root systemctl enable acpid.service
 
     info "Clear dnf cache..."
     umount $TMPDIR/root/var/cache/dnf 
@@ -225,9 +230,9 @@ else
  
     info "Update fstab with UUID..."
     # Edit fstab
-    echo "UUID=${ROOTUUID}	/   		btrfs	subvol=root			0 0" > $TMPDIR/root/etc/fstab
+    echo "UUID=${ROOTUUID}	/   		btrfs	subvol=root,compress=zstd:1	0 0" > $TMPDIR/root/etc/fstab
     echo "UUID=${BOOTUUID}	/boot		ext4	defaults			1 2" >> $TMPDIR/root/etc/fstab
-    echo "UUID=${ROOTUUID}	/home   	btrfs	subvol=home			0 0" >> $TMPDIR/root/etc/fstab
+    echo "UUID=${ROOTUUID}	/home   	btrfs	subvol=home,compress=zstd:1	0 0" >> $TMPDIR/root/etc/fstab
 fi
 
     info "Set timezone..."
@@ -279,6 +284,9 @@ prepare_card () {
     umount ${SDCARD}* 1> /dev/null 2>&1
     umount ${SDCARD}* 1> /dev/null 2>&1
     umount ${SDCARD}* 1> /dev/null 2>&1
+    umount ${SDCARD}* 1> /dev/null 2>&1
+    umount ${SDCARD}* 1> /dev/null 2>&1
+    umount ${SDCARD}* 1> /dev/null 2>&1
     wipefs -a ${SDCARD} 1> /dev/null 2>&1
     echo -e "label:gpt" | sfdisk ${SDCARD} 1> /dev/null 2>&1
 
@@ -321,10 +329,10 @@ else
     umount $TMPDIR/root || exit
     sleep 1
     info "Mount all partitions..."
-    mount -t btrfs -o subvol=root ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
+    mount -t btrfs -o subvol=root,compress=zstd:1 ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
     sleep 1
     mkdir -p $TMPDIR/root/home
-    mount -t btrfs -o subvol=home ${SDCARD}${SDDEV}2 $TMPDIR/root/home  || exit
+    mount -t btrfs -o subvol=home,compress=zstd:1 ${SDCARD}${SDDEV}2 $TMPDIR/root/home  || exit
     sleep 1
     mkdir -p $TMPDIR/root/boot
     mount ${SDCARD}${SDDEV}1 $TMPDIR/root/boot  || exit
@@ -480,8 +488,8 @@ fi
 if [ ! -z "$SDCARD" ]; then
     DISKLAYOUT=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
         --menu "Choose a disk layout:" 20 75 10 \
-        "ext4"     "ext4 on root and boot" \
         "btrfs"    "btrfs on root and ext4 boot" \
+        "ext4"     "ext4 on root and boot" \
         3>&1 1>&2 2>&3 3>&-)
 
 else
@@ -502,6 +510,18 @@ else
 fi
 
 if [ ! -z "$KERNELVER" ]; then
+    DNFUPGRADE=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
+        --menu "Upgrade during install?" 20 75 10 \
+        "yes"  "Upgrade all to current version" \
+        "no"   "Install version from image" \
+        3>&1 1>&2 2>&3 3>&-)
+
+else
+        clear
+        exit 1
+fi
+
+if [ ! -z "$DNFUPGRADE" ]; then
 	let i=0
 	W=()
 	while read -r line; do
@@ -516,7 +536,6 @@ else
 	clear
 	exit 1
 fi
-
 
 if [ ! -z "$TIMEZONE" ]; then
 	let i=0
@@ -588,6 +607,7 @@ if [ ! -z "$HOSTNAME" ]; then
     SDCard/eMMC/USB = $SDCARD
     Disklayout = $DISKLAYOUT
     Kernel = $KERNELVER
+    Upgrade = $DNFUPGRADE
     Timezone = $TIMEZONE
     Locale = $LOCALE
     Keyboard layout = $CLIKEYMAP
