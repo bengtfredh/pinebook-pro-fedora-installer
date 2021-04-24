@@ -261,6 +261,9 @@ if [ ! -f "$TMPDIR/root/usr/share/arm-image-installer/boards.d/pinebook-pro-rk33
     ln -s ../socs.d/Rockchips-ARMv8 $TMPDIR/root/usr/share/arm-image-installer/boards.d/pinebook-pro-rk3399
 fi
 
+    # Extract firmware dptx.bin
+    xz -d $TMPDIR/root/usr/lib/firmware/rockchip/dptx.bin.xz 1> /dev/null 2>&1
+
     info "Setting up users..."
     #setup users
     echo "$USER" > $TMPDIR/user
