@@ -230,9 +230,9 @@ else
  
     info "Update fstab with UUID..."
     # Edit fstab
-    echo "UUID=${ROOTUUID}	/   		btrfs	subvol=root,compress=zstd:1	0 0" > $TMPDIR/root/etc/fstab
-    echo "UUID=${BOOTUUID}	/boot		ext4	defaults			1 2" >> $TMPDIR/root/etc/fstab
-    echo "UUID=${ROOTUUID}	/home   	btrfs	subvol=home,compress=zstd:1	0 0" >> $TMPDIR/root/etc/fstab
+    echo "UUID=${ROOTUUID}	/   		btrfs	subvol=root,compress=zstd:1,noatime	0 0" > $TMPDIR/root/etc/fstab
+    echo "UUID=${BOOTUUID}	/boot		ext4	defaults				1 2" >> $TMPDIR/root/etc/fstab
+    echo "UUID=${ROOTUUID}	/home   	btrfs	subvol=home,compress=zstd:1,noatime	0 0" >> $TMPDIR/root/etc/fstab
 fi
 
     info "Set timezone..."
@@ -329,10 +329,10 @@ else
     umount $TMPDIR/root || exit
     sleep 1
     info "Mount all partitions..."
-    mount -t btrfs -o subvol=root,compress=zstd:1 ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
+    mount -t btrfs -o subvol=root,compress=zstd:1,noatime ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
     sleep 1
     mkdir -p $TMPDIR/root/home
-    mount -t btrfs -o subvol=home,compress=zstd:1 ${SDCARD}${SDDEV}2 $TMPDIR/root/home  || exit
+    mount -t btrfs -o subvol=home,compress=zstd:1,noatime ${SDCARD}${SDDEV}2 $TMPDIR/root/home  || exit
     sleep 1
     mkdir -p $TMPDIR/root/boot
     mount ${SDCARD}${SDDEV}1 $TMPDIR/root/boot  || exit
