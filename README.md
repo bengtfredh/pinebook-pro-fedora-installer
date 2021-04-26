@@ -47,7 +47,7 @@ sudo bash ./fedora-installer [<url>]
 ```
 Some Fedora mirrors are veeeery slow - give url to known good mirror as parameter i.e.
 ```
-bash ./fedora-installer https://fedora.uib.no/fedora/linux/releases/32/Workstation/aarch64/images/Fedora-Workstation-32-1.6.aarch64.raw.xz
+bash ./fedora-installer https://fedora.uib.no/fedora/linux/releases/34/Workstation/aarch64/images/Fedora-Workstation-34-1.2.aarch64.raw.xz
 ```
 ## Known Issues:
 * Because `dialog` is weird, the script needs to be run in `bash`.
@@ -63,8 +63,7 @@ bash ./fedora-installer https://fedora.uib.no/fedora/linux/releases/32/Workstati
 * [x] ~~Test update-uboot~~
 * [x] ~~Create kernel upgrade script~~
 * [ ] Add u-boot gfx - I have been testing this and it is too buggy by now. I like https://github.com/pcm720/u-boot-build-scripts/releases.
-* [ ] Change disklayout and filesystem to btrfs.
-* [ ] Change source to smaller image (container.tar.zx) and dnf an installation.
+* [x] ~~Change disklayout and filesystem to btrfs.~~
 * [x] ~~Create copr repo and replace overlay and Manjaro part of the script~~ https://github.com/bengtfredh/pinebook-pro-copr
 
 ## Supported Devices:
@@ -75,7 +74,7 @@ bash ./fedora-installer https://fedora.uib.no/fedora/linux/releases/32/Workstati
 * Fedora Minimal (Add full url as parameter to script)
 Example:
 ```
-bash ./fedora-installer https://mirrors.dotsrc.org/fedora-buffet/fedora-secondary/releases/32/Spins/aarch64/images/Fedora-Minimal-32-1.6.aarch64.raw.xz
+bash ./fedora-installer https://mirrors.dotsrc.org/fedora-buffet/fedora-secondary/releases/34/Spins/aarch64/images/Fedora-Minimal-34-1.2.aarch64.raw.xz
 ```
 
 There is no reason why this script should not work with other editions of Fedora. Just give url as maramater when script run. Script is tested with Fedora Workstation and Minimal.
@@ -84,7 +83,7 @@ There is no reason why this script should not work with other editions of Fedora
 To create image you later can dd to mmc/emmc/nvme  
 Prepare an image by running following:
 ```
-fallocate -l 10GiB myimage.img
+fallocate -l 8GiB myimage.img
 losetup /dev/loopX myimage.img
 ```
 Run the script pointing to /dev/loopX.
