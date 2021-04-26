@@ -5,7 +5,7 @@
 # *****************************
 
 # Fedora image read url as parameter
-FEDORA_SOURCE=https://download.fedoraproject.org/pub/fedora/linux/development/34/Workstation/aarch64/images/
+FEDORA_SOURCE=https://download.fedoraproject.org/pub/fedora/linux/development/rawhide/Workstation/aarch64/images/
 FEDORA_FILE_VER=$(wget -q $FEDORA_SOURCE -O - | grep -Po '(?<=Fedora-Workstation-).*?(?=.aarch64)' | head -n 1)
 FEDORA_FILE=Fedora-Workstation-$FEDORA_FILE_VER.aarch64.raw.xz
 FEDORAURL=${1:-"${FEDORA_SOURCE}/${FEDORA_FILE}"}
