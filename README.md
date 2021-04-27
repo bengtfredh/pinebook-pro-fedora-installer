@@ -47,7 +47,7 @@ sudo bash ./fedora-installer [<url>]
 ```
 Some Fedora mirrors are veeeery slow - give url to known good mirror as parameter i.e.
 ```
-bash ./fedora-installer https://fedora.uib.no/fedora/linux/releases/33/Workstation/aarch64/images/Fedora-Workstation-33-1.3.aarch64.raw.xz
+bash ./fedora-installer https://fedora.uib.no/fedora/linux/releases/34/Workstation/aarch64/images/Fedora-Workstation-34-1.2.aarch64.raw.xz
 ```
 ## Known Issues:
 * Because `dialog` is weird, the script needs to be run in `bash`.
@@ -74,7 +74,7 @@ bash ./fedora-installer https://fedora.uib.no/fedora/linux/releases/33/Workstati
 * Fedora Minimal (Add full url as parameter to script)
 Example:
 ```
-bash ./fedora-installer https://mirrors.dotsrc.org/fedora-buffet/fedora-secondary/releases/33/Spins/aarch64/images/Fedora-Minimal-33-1.2.aarch64.raw.xz
+bash ./fedora-installer https://mirrors.dotsrc.org/fedora-buffet/fedora-secondary/releases/34/Spins/aarch64/images/Fedora-Minimal-34-1.2.aarch64.raw.xz
 ```
 
 There is no reason why this script should not work with other editions of Fedora. Just give url as maramater when script run. Script is tested with Fedora Workstation and Minimal.

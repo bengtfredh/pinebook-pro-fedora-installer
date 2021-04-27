@@ -1,11 +1,11 @@
 #! /bin/bash
 
 # *****************************
-#       Version 33.1
+#       Version 34.1
 # *****************************
 
 # Fedora image read url as parameter
-FEDORAURL=${1:-"https://download.fedoraproject.org/pub/fedora/linux/releases/33/Workstation/aarch64/images/Fedora-Workstation-33-1.3.aarch64.raw.xz"}
+FEDORAURL=${1:-"https://download.fedoraproject.org/pub/fedora/linux/releases/34/Workstation/aarch64/images/Fedora-Workstation-34-1.2.aarch64.raw.xz"}
 FEDORARAW="$(basename -s .xz "${FEDORAURL}")"
 
 # Set globals
@@ -257,6 +257,9 @@ fi
 if [ ! -f "$TMPDIR/root/usr/share/arm-image-installer/boards.d/pinebook-pro-rk3399" ]; then
     ln -s ../socs.d/Rockchips-ARMv8 $TMPDIR/root/usr/share/arm-image-installer/boards.d/pinebook-pro-rk3399
 fi
+
+    # Extract firmware dptx.bin
+    xz -d $TMPDIR/root/usr/lib/firmware/rockchip/dptx.bin.xz 1> /dev/null 2>&1
 
     info "Setting up users..."
     #setup users
