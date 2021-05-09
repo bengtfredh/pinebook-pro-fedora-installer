@@ -25,6 +25,7 @@ Runtime is approx 40-50 minutes for Fedora Workstation depending on your bandwid
 ## Dependencies:
 * systemd-container (systemd-nspawn)
 * bash
+* bsdtar
 * wget
 * dialog
 * libarchive
