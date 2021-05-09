@@ -24,7 +24,6 @@ Runtime is approx 40-50 minutes for Fedora Workstation depending on your bandwid
 
 ## Dependencies:
 * bash
-* bsdtar
 * dialog
 * gawk
 * libarchive
