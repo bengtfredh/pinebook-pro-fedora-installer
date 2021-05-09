@@ -23,16 +23,16 @@ This script is "interactive". Meaning that it asks you questions when run to cus
 Runtime is approx 40-50 minutes for Fedora Workstation depending on your bandwidth and SD card speed. Fedora update is what takes longest time.
 
 ## Dependencies:
-* systemd-container (systemd-nspawn)
 * bash
 * bsdtar
-* wget
 * dialog
-* libarchive
-* qemu-user-static (archlinux: binfmt-qemu-static)
-* openssl
 * gawk
+* libarchive
+* openssl
 * polkit
+* qemu-user-static (archlinux: binfmt-qemu-static)
+* systemd-container (systemd-nspawn)
+* wget
 
 ## Usage:
 To use this script, please make sure that the following is correct:
