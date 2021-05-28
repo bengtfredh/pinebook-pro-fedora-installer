@@ -25,11 +25,13 @@ Runtime is approx 40-50 minutes for Fedora Workstation depending on your bandwid
 ## Dependencies:
 * bash
 * dialog
+* fdisk
 * gawk
 * libarchive
 * openssl
 * polkit
 * qemu-user-static (archlinux: binfmt-qemu-static)
+* sfdisk
 * systemd-container (systemd-nspawn)
 * wget
 

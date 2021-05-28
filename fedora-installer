@@ -1,7 +1,7 @@
 #! /bin/bash
 
 # *****************************
-#       Version 34.1
+#       Version 34.2
 # *****************************
 
 # Fedora image read url as parameter
@@ -54,7 +54,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Sanity checks for dependencies
-declare -a DEPENDNECIES=( "btrfs" "sed" "rsync" "systemd-nspawn" "wget" "dialog" "openssl" "awk" "parted" )
+declare -a DEPENDNECIES=( "btrfs" "sed" "rsync" "systemd-nspawn" "wget" "dialog" "openssl" "awk" "fdisk" "sfdisk" )
 
 for i in "${DEPENDNECIES[@]}"; do
   if ! [[ -f "/bin/$i" || -f "/sbin/$i" || -f "/usr/bin/$i" || -f "/usr/sbin/$i" ]] ; then
