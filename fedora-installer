@@ -346,17 +346,18 @@ else
             mkfs.btrfs -f /dev/mapper/"${DEV_NAME}-root" 1> /dev/null 2>&1
     fi
     mkdir -p $TMPDIR/root
+    mkdir -p $TMPDIR/btrfsroot
     if [[ "$CRYPT" != "yes" ]]; then
-    mount ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
+    mount ${SDCARD}${SDDEV}2 $TMPDIR/btrfsroot || exit
     else
             [ ! -e /dev/mapper/"${DEV_NAME}-root" ] && cryptsetup open "${SDCARD}${SDDEV}2" "${DEV_NAME}-root"
-            mount /dev/mapper/"${DEV_NAME}-root" $TMPDIR/root
+            mount /dev/mapper/"${DEV_NAME}-root" $TMPDIR/btrfsroot
     fi
     sleep 1
     info "Create btrfs subvolumes..."
-    btrfs subvolume create $TMPDIR/root/root 1> /dev/null 2>&1
-    btrfs subvolume create $TMPDIR/root/home 1> /dev/null 2>&1
-    umount $TMPDIR/root || exit
+    btrfs subvolume create $TMPDIR/btrfsroot/root 1> /dev/null 2>&1
+    btrfs subvolume create $TMPDIR/btrfsroot/home 1> /dev/null 2>&1
+    #umount $TMPDIR/root || exit
     sleep 1
     info "Mount all partitions..."
     if [[ "$CRYPT" != "yes" ]]; then
@@ -414,6 +415,7 @@ unmout_all () {
     if [[ "$CRYPT" = "yes" ]]; then
 	    cryptsetup close /dev/mapper/"${DEV_NAME}-root"
     fi
+    umount $TMPDIR/btrfsroot
 
     partprobe $SDCARD 1> /dev/null 2>&1
 
