@@ -361,15 +361,15 @@ else
     sleep 1
     info "Mount all partitions..."
     if [[ "$CRYPT" != "yes" ]]; then
+            mount -t btrfs -o subvol=root,compress=zstd:1,noatime ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
+            sleep 1
+            mkdir -p $TMPDIR/root/home
+            mount -t btrfs -o subvol=home,compress=zstd:1,noatime ${SDCARD}${SDDEV}2 $TMPDIR/root/home  || exit
+    else
 	    mount -t btrfs -o subvol=root,compress=zstd:1,noatime /dev/mapper/"${DEV_NAME}-root" $TMPDIR/root || exit
             sleep 1
             mkdir -p $TMPDIR/root/home
             mount -t btrfs -o subvol=home,compress=zstd:1,noatime /dev/mapper/"${DEV_NAME}-root" $TMPDIR/root/home  || exit
-    else
-    mount -t btrfs -o subvol=root,compress=zstd:1,noatime ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
-    sleep 1
-    mkdir -p $TMPDIR/root/home
-    mount -t btrfs -o subvol=home,compress=zstd:1,noatime ${SDCARD}${SDDEV}2 $TMPDIR/root/home  || exit
     fi
     sleep 1
     mkdir -p $TMPDIR/root/boot
