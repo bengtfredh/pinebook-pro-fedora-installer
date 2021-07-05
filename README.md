@@ -24,6 +24,7 @@ Runtime is approx 40-50 minutes for Fedora Workstation depending on your bandwid
 
 ## Dependencies:
 * bash
+* cryptsetup
 * dialog
 * fdisk
 * gawk

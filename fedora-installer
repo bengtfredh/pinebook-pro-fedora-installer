@@ -1,7 +1,7 @@
 #! /bin/bash
 
 # *****************************
-#       Version 34.2
+#       Version 34.3
 # *****************************
 
 # Fedora image read url as parameter
@@ -42,6 +42,7 @@ LOCALE=""
 HOSTNAME=""
 DISKLAYOUT=""
 DNFUPGRADE=""
+CRYPT=""
 
 # check if root
 if [ "$EUID" -ne 0 ]; then
@@ -54,7 +55,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Sanity checks for dependencies
-declare -a DEPENDNECIES=( "btrfs" "sed" "rsync" "systemd-nspawn" "wget" "dialog" "openssl" "awk" "fdisk" "sfdisk" )
+declare -a DEPENDNECIES=( "btrfs" "sed" "rsync" "systemd-nspawn" "wget" "dialog" "openssl" "awk" "fdisk" "sfdisk" "cryptsetup" )
 
 for i in "${DEPENDNECIES[@]}"; do
   if ! [[ -f "/bin/$i" || -f "/sbin/$i" || -f "/usr/bin/$i" || -f "/usr/sbin/$i" ]] ; then
@@ -311,10 +312,23 @@ format_card () {
 info "Format partitions on $DEV_NAME"
 if [[ "$DISKLAYOUT" = "ext4" ]]; then
     mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}1" -L "${DEV_NAME}-boot" 1> /dev/null 2>&1
-    mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}2" -L "${DEV_NAME}-root" 1> /dev/null 2>&1
+    if [[ "$CRYPT" != "yes" ]]; then
+	    mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}2" -L "${DEV_NAME}-root" 1> /dev/null 2>&1
+    else
+	    info "Create encryption password:"
+            cryptsetup luksFormat -q "${SDCARD}${SDDEV}2"
+            info "Confirm encryption password:"
+            cryptsetup open "${SDCARD}${SDDEV}2" "${DEV_NAME}-root"
+            mkfs.ext4 -F -O ^metadata_csum,^64bit /dev/mapper/"${DEV_NAME}-root" 1> /dev/null 2>&1
+    fi
     sleep 1
     mkdir -p $TMPDIR/root
-    mount ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
+    if [[ "$CRYPT" != "yes" ]]; then
+	    mount ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
+    else
+	    [ ! -e /dev/mapper/"${DEV_NAME}-root" ] && cryptsetup open "${SDCARD}${SDDEV}2" "${DEV_NAME}-root"
+            mount /dev/mapper/"${DEV_NAME}-root" $TMPDIR/root
+    fi
     sleep 1
     mkdir -p $TMPDIR/root/boot
     mount ${SDCARD}${SDDEV}1 $TMPDIR/root/boot || exit
@@ -322,9 +336,22 @@ if [[ "$DISKLAYOUT" = "ext4" ]]; then
 else
     # DISKLAYOUT = btrfs
     mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}1" -L "${DEV_NAME}-boot" 1> /dev/null 2>&1
-    mkfs.btrfs -f "${SDCARD}${SDDEV}2" -L "<FS_TREE>" 1> /dev/null 2>&1
+    if [[ "$CRYPT" != "yes" ]]; then
+	    mkfs.btrfs -f "${SDCARD}${SDDEV}2" -L "${DEV_NAME}-root" 1> /dev/null 2>&1
+    else
+	    info "Create encryption password:"
+            cryptsetup luksFormat -q "${SDCARD}${SDDEV}2"
+            info "Confirm encryption password:"
+            cryptsetup open "${SDCARD}${SDDEV}2" "${DEV_NAME}-root"
+            mkfs.btrfs -f /dev/mapper/"${DEV_NAME}-root" 1> /dev/null 2>&1
+    fi
     mkdir -p $TMPDIR/root
+    if [[ "$CRYPT" != "yes" ]]; then
     mount ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
+    else
+            [ ! -e /dev/mapper/"${DEV_NAME}-root" ] && cryptsetup open "${SDCARD}${SDDEV}2" "${DEV_NAME}-root"
+            mount /dev/mapper/"${DEV_NAME}-root" $TMPDIR/root
+    fi
     sleep 1
     info "Create btrfs subvolumes..."
     btrfs subvolume create $TMPDIR/root/root 1> /dev/null 2>&1
@@ -332,10 +359,17 @@ else
     umount $TMPDIR/root || exit
     sleep 1
     info "Mount all partitions..."
+    if [[ "$CRYPT" != "yes" ]]; then
+	    mount -t btrfs -o subvol=root,compress=zstd:1,noatime /dev/mapper/"${DEV_NAME}-root" $TMPDIR/root || exit
+            sleep 1
+            mkdir -p $TMPDIR/root/home
+            mount -t btrfs -o subvol=home,compress=zstd:1,noatime /dev/mapper/"${DEV_NAME}-root" $TMPDIR/root/home  || exit
+    else
     mount -t btrfs -o subvol=root,compress=zstd:1,noatime ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
     sleep 1
     mkdir -p $TMPDIR/root/home
     mount -t btrfs -o subvol=home,compress=zstd:1,noatime ${SDCARD}${SDDEV}2 $TMPDIR/root/home  || exit
+    fi
     sleep 1
     mkdir -p $TMPDIR/root/boot
     mount ${SDCARD}${SDDEV}1 $TMPDIR/root/boot  || exit
@@ -366,16 +400,39 @@ cleanup () {
     info "Reset machine-id"
     $NSPAWN $TMPDIR/root rm -f /etc/machine-id 1> /dev/null 2>&1
     touch /etc/machine-id 1> /dev/null 2>&1
-    	
+
+    	if [[ "$CRYPT" = "yes" ]]; then
+	post_crypt
+	fi
+}
+
+unmout_all () {
     #clean up
     umount $TMPDIR/root/home 1> /dev/null 2>&1
     umount $TMPDIR/root/boot
     umount $TMPDIR/root
+    if [[ "$CRYPT" = "yes" ]]; then
+	    cryptsetup close /dev/mapper/"${DEV_NAME}-root"
+    fi
+
     partprobe $SDCARD 1> /dev/null 2>&1
 
     rm -rf $TMPDIR
     msg "Not removing installation media $MEDIADIR"
 }
+
+post_crypt () {
+    # Get the UUID
+    BOOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}1")
+    ROOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}2")
+
+    # Modify the /boot/extlinux/extlinux.conf to match our needs
+    sed -i -e "s!APPEND.*!APPEND initrd=/initramfs-linux.img console=tty1 cryptdevice=UUID=${ROOTUUID}:"${DEV_NAME}-root" root=/dev/mapper/"${DEV_NAME}-root" rw rootwait!g" ${TMPDIR}/boot/extlinux/extlinux.conf
+
+    # Generate the /etc/crypttab file
+    echo ""${DEV_NAME}-root"   UUID=${ROOTUUID}    none            luks,discard" > ${TMPDIR}/root/etc/crypttab
+}
+
 
 if [ ! -z "$EDITION" ]; then
 	USER=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
@@ -489,6 +546,18 @@ else
 fi
 
 if [ ! -z "$SDCARD" ]; then
+	CRYPT=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
+		--menu "Do you want encryption on root partition?" 10 90 10 \
+		"no"		"No, thanks" \
+		"yes"		"Yes, please" \
+		3>&1 1>&2 2>&3 3>&-)
+else
+	clear
+	exit 1
+fi
+
+
+if [ ! -z "$CRYPT" ]; then
     DISKLAYOUT=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
         --menu "Choose a disk layout:" 20 75 10 \
         "btrfs"    "btrfs on root and ext4 boot" \
@@ -608,6 +677,7 @@ if [ ! -z "$HOSTNAME" ]; then
     Password for $USER = (password hidden)
     Password for root = (password hidden)
     SDCard/eMMC/USB = $SDCARD
+    Encryption = $CRYPT
     Disklayout = $DISKLAYOUT
     Kernel = $KERNELVER
     Upgrade = $DNFUPGRADE
@@ -645,5 +715,6 @@ install_fedora
 upgrade_fedora
 configure_fedora
 cleanup
+unmount_all
 show_elapsed_time "${FUNCNAME}" "${timer_start}"
 sync
