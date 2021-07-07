@@ -412,10 +412,10 @@ umount_all () {
     umount $TMPDIR/root/home 1> /dev/null 2>&1
     umount $TMPDIR/root/boot
     umount $TMPDIR/root
+    umount $TMPDIR/btrfsroot
     if [[ "$CRYPT" = "yes" ]]; then
 	    cryptsetup close /dev/mapper/"${DEV_NAME}-root"
     fi
-    umount $TMPDIR/btrfsroot
 
     partprobe $SDCARD 1> /dev/null 2>&1
 
