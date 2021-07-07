@@ -429,7 +429,7 @@ post_crypt () {
     ROOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}2")
 
     # Modify the /boot/extlinux/extlinux.conf to match our needs
-    sed -i -e "s!APPEND.*!APPEND initrd=/initramfs-linux.img console=tty1 cryptdevice=UUID=${ROOTUUID}:"${DEV_NAME}-root" root=/dev/mapper/"${DEV_NAME}-root" rw rootwait!g" ${TMPDIR}/boot/extlinux/extlinux.conf
+    sed -i -e "s!APPEND.*!APPEND initrd=/initramfs-linux.img console=tty1 cryptdevice=UUID=${ROOTUUID}:"${DEV_NAME}-root" root=/dev/mapper/"${DEV_NAME}-root" rw rootwait!g" ${TMPDIR}/root/boot/extlinux/extlinux.conf
 
     # Generate the /etc/crypttab file
     echo ""${DEV_NAME}-root"   UUID=${ROOTUUID}    none            luks,discard" > ${TMPDIR}/root/etc/crypttab
