@@ -407,7 +407,7 @@ cleanup () {
 	fi
 }
 
-unmout_all () {
+umount_all () {
     #clean up
     umount $TMPDIR/root/home 1> /dev/null 2>&1
     umount $TMPDIR/root/boot
@@ -717,6 +717,6 @@ install_fedora
 upgrade_fedora
 configure_fedora
 cleanup
-unmount_all
+umount_all
 show_elapsed_time "${FUNCNAME}" "${timer_start}"
 sync
