@@ -1,11 +1,11 @@
 #! /bin/bash
 
 # *****************************
-#       Version 34.2
+#       Version 35.0
 # *****************************
 
 # Fedora image read url as parameter
-FEDORAURL=${1:-"https://download.fedoraproject.org/pub/fedora/linux/releases/34/Workstation/aarch64/images/Fedora-Workstation-34-1.2.aarch64.raw.xz"}
+FEDORAURL=${1:-"https://download.fedoraproject.org/pub/fedora/linux/releases/35/Workstation/aarch64/images/Fedora-Workstation-35-1.2.aarch64.raw.xz"}
 FEDORARAW="$(basename -s .xz "${FEDORAURL}")"
 
 # Set globals
@@ -160,7 +160,8 @@ upgrade_fedora() {
     info "Remove packages not needed..."
     $NSPAWN $TMPDIR/root dnf remove -y kernel kernel-core kernel-modules 1> /dev/null 2>&1
     rm -f $TMPDIR/root/etc/dnf/protected.d/grub2-*
-    $NSPAWN $TMPDIR/root dnf remove -y grub2-* efi-filesystem bcm283x-firmware 1> /dev/null 2>&1
+    rm -f $TMPDIR/root/etc/dnf/protected.d/shim*
+    $NSPAWN $TMPDIR/root dnf remove -y grub2-* efi-filesystem bcm* shim* 1> /dev/null 2>&1
     rm -rf $TMPDIR/root/boot/*
     mkdir -p $TMPDIR/dnf
     mount -o bind $TMPDIR/dnf $TMPDIR/root/var/cache/dnf
