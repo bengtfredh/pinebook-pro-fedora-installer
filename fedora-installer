@@ -125,12 +125,13 @@ install_fedora() {
     msg "Install Fedora from media..."
 	
     info "Making mount directories..."
-    mkdir -p $TMPDIR/imgfs/{2,3}
+    mkdir -p $TMPDIR/imgfs/{1,2,3}
 
     info "Mounting Fedora image..."
 
     losetup $LOOP $MEDIADIR/$FEDORARAW
     partprobe -s $LOOP
+    mount "$LOOP"p1 $TMPDIR/imgfs/1
     mount "$LOOP"p2 $TMPDIR/imgfs/2
     mount "$LOOP"p3 $TMPDIR/imgfs/3
 
@@ -141,6 +142,7 @@ else
     rsync -a --info=progress2 $TMPDIR/imgfs/3/* $TMPDIR/root/
 fi
     rsync -a --info=progress2 $TMPDIR/imgfs/2/* $TMPDIR/root/boot/
+    rsync -a --info=progress2 $TMPDIR/imgfs/1/* $TMPDIR/root/boot/efi/
 
     info "Unmounting Fedora media..."
     umount "$LOOP"p2
