@@ -193,39 +193,24 @@ configure_fedora() {
     touch $TMPDIR/root/.autorelabel
 
     # Get UUID
-    BOOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}1")
-    ROOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}2")
+    EFIUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}1")
+    BOOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}2")
+    ROOTUUID=$(blkid -s UUID -o value "${SDCARD}${SDDEV}3")
 
 if [[ "$DISKLAYOUT" = "ext4" ]]; then
-    # Configure extlinux.conf
-    info "Update extlinux.conf with UUID..."
-    mkdir ${TMPDIR}/root/boot/extlinux/ -p
-    echo "LABEL Fedora PinebookPro" > ${TMPDIR}/root/boot/extlinux/extlinux.conf 
-    echo "KERNEL /Image" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
-    echo "FDT /dtbs/rockchip/rk3399-pinebook-pro.dtb" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
-    echo "INITRD /initramfs-linux.img" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
-    echo "APPEND console=tty1 console=ttyS2,1500000 root=UUID=${ROOTUUID} rw splash plymouth.ignore-serial-consoles rhgb quiet" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf
-
     info "Update fstab with UUID..."
     # Edit fstab
     echo "UUID=${ROOTUUID}	/	ext4	defaults	0 1"  > $TMPDIR/root/etc/fstab
     echo "UUID=${BOOTUUID}	/boot	ext4	defaults	0 2" >> $TMPDIR/root/etc/fstab
+    echo "UUID=${EFIUUID}	/boot/efi	vfat    umask=0077,shortname=winnt	0 2" >> $TMPDIR/root/etc/fstab
 else
     # DISKLAYOUT = btrfs
-    info "Update extlinux.conf with UUID..."
-    # Configure extlinux.conf
-    mkdir ${TMPDIR}/root/boot/extlinux/ -p
-    echo "LABEL Fedora PinebookPro" > ${TMPDIR}/root/boot/extlinux/extlinux.conf 
-    echo "KERNEL /Image" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
-    echo "FDT /dtbs/rockchip/rk3399-pinebook-pro.dtb" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
-    echo "INITRD /initramfs-linux.img" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
-    echo "APPEND console=tty1 console=ttyS2,1500000 root=UUID=${ROOTUUID} rw rootflags=subvol=root splash plymouth.ignore-serial-consoles rhgb quiet" >> ${TMPDIR}/root/boot/extlinux/extlinux.conf 
- 
     info "Update fstab with UUID..."
     # Edit fstab
     echo "UUID=${ROOTUUID}	/   		btrfs	subvol=root,compress=zstd:1,noatime	0 0" > $TMPDIR/root/etc/fstab
     echo "UUID=${BOOTUUID}	/boot		ext4	defaults				1 2" >> $TMPDIR/root/etc/fstab
     echo "UUID=${ROOTUUID}	/home   	btrfs	subvol=home,compress=zstd:1,noatime	0 0" >> $TMPDIR/root/etc/fstab
+    echo "UUID=${EFIUUID}	/boot/efi	vfat    umask=0077,shortname=winnt	0 2" >> $TMPDIR/root/etc/fstab
 fi
 
     info "Set timezone..."
@@ -245,11 +230,9 @@ fi
     info "Set hostname..."
     echo "$HOSTNAME" > $TMPDIR/root/etc/hostname
 
-    info "Fix update-uboot for pinebook-pro-rk3399"
-    # Fixed in arm-image-installer => 3.0
-if [ ! -f "$TMPDIR/root/usr/share/arm-image-installer/boards.d/pinebook-pro-rk3399" ]; then
-    ln -s ../socs.d/Rockchips-ARMv8 $TMPDIR/root/usr/share/arm-image-installer/boards.d/pinebook-pro-rk3399
-fi
+    info "Fix grub fallback..."
+    rm -f $TMPDIR/root/boot/efi/EFI/BOOT/BOOTAA64.EFI 1> /dev/null 2>&1
+    cp -af $TMPDIR/root/boot/efi/EFI/fedora/grubaa64.efi $TMPDIR/root/boot/efi/EFI/BOOT/BOOTAA64.EFI 1> /dev/null 2>&1
 
     # Extract firmware dptx.bin
     xz -d $TMPDIR/root/usr/lib/firmware/rockchip/dptx.bin.xz 1> /dev/null 2>&1
