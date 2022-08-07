@@ -225,7 +225,7 @@ fi
     echo 'Identifier "system-keyboard"' >> $TMPDIR/root/etc/X11/xorg.conf.d/00-keyboard.conf
     echo 'Option "XkbLayout" "us"' >> $TMPDIR/root/etc/X11/xorg.conf.d/00-keyboard.conf
     echo 'EndSection' >> $TMPDIR/root/etc/X11/xorg.conf.d/00-keyboard.conf
-    sed -i s/"us"/"$X11KEYMAP"/ $TMPDIR/root/etc/X11/xorg.conf.d/00-keyboard.conf
+    sed -i 's/"us"/"${X11KEYMAP}"/' $TMPDIR/root/etc/X11/xorg.conf.d/00-keyboard.conf
 
     info "Set hostname..."
     echo "$HOSTNAME" > $TMPDIR/root/etc/hostname
@@ -348,6 +348,7 @@ cleanup () {
     	
     #clean up
     umount $TMPDIR/root/home 1> /dev/null 2>&1
+    umount $TMPDIR/root/boot/efi
     umount $TMPDIR/root/boot
     umount $TMPDIR/root
     partprobe $SDCARD 1> /dev/null 2>&1
