@@ -54,7 +54,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 # Sanity checks for dependencies
-declare -a DEPENDNECIES=( "btrfs" "sed" "rsync" "systemd-nspawn" "wget" "dialog" "openssl" "awk" "fdisk" "sfdisk" )
+declare -a DEPENDNECIES=( "btrfs" "mkfs.fat" "sed" "rsync" "systemd-nspawn" "wget" "dialog" "openssl" "awk" "fdisk" "sfdisk" )
 
 for i in "${DEPENDNECIES[@]}"; do
   if ! [[ -f "/bin/$i" || -f "/sbin/$i" || -f "/usr/bin/$i" || -f "/usr/sbin/$i" ]] ; then
@@ -145,11 +145,13 @@ fi
     rsync -a --info=progress2 $TMPDIR/imgfs/1/* $TMPDIR/root/boot/efi/
 
     info "Unmounting Fedora media..."
+    umount "$LOOP"p1
     umount "$LOOP"p2
     umount "$LOOP"p3
     losetup -d $LOOP
 
     info "Deleting temp directories..."
+    rmdir $TMPDIR/imgfs/1
     rmdir $TMPDIR/imgfs/2
     rmdir $TMPDIR/imgfs/3
     rmdir $TMPDIR/imgfs
@@ -158,12 +160,6 @@ fi
 
 upgrade_fedora() {
     msg "Upgrade Fedora and add packages..."
-
-    info "Remove packages not needed..."
-    $NSPAWN $TMPDIR/root dnf remove -y kernel kernel-core kernel-modules 1> /dev/null 2>&1
-    rm -f $TMPDIR/root/etc/dnf/protected.d/grub2-* $TMPDIR/root/etc/dnf/protected.d/shim*
-    $NSPAWN $TMPDIR/root dnf remove -y grub2-* efi-filesystem bcm*  1> /dev/null 2>&1
-    rm -rf $TMPDIR/root/boot/*
     mkdir -p $TMPDIR/dnf
     mount -o bind $TMPDIR/dnf $TMPDIR/root/var/cache/dnf
 
@@ -183,12 +179,7 @@ upgrade_fedora() {
     $NSPAWN $TMPDIR/root dnf makecache
 
     info "Install Pinebook Pro copr packages..."
-if [[ "$KERNELVER" = "kernel-pbp" ]]; then
-    $NSPAWN $TMPDIR/root dnf install -y kernel-pbp uboot-pinebookpro pinebookpro-extlinux ap6256-firmware pbp-keyboard-hwdb pinebookpro-suspend pinebookpro-audio pinebookpro-network
-else
-    # KERNELVER=linux-majaro
-    $NSPAWN $TMPDIR/root dnf install -y linux-manjaro uboot-pinebookpro pinebookpro-extlinux ap6256-firmware pbp-keyboard-hwdb pinebookpro-suspend pinebookpro-audio pinebookpro-network
-fi
+    $NSPAWN $TMPDIR/root dnf install -y ap6256-firmware pbp-keyboard-hwdb pinebookpro-suspend pinebookpro-audio pinebookpro-network
 
     info "Clear dnf cache..."
     umount $TMPDIR/root/var/cache/dnf 
@@ -300,9 +291,10 @@ prepare_card () {
     dd if=/dev/zero of=${SDCARD} bs=1M count=32 1> /dev/null 2>&1
 
     info "Partition $DEV_NAME"
-    info "Partition with boot and root"
-    echo -e "label:gpt\nunit:sectors\nfirst-lba:32768" | sfdisk ${SDCARD} 1> /dev/null 2>&1
-    echo -e "n\n1\n32768\n+1G\nn\n2\n\n\nx\nA\n1\nr\nw" | fdisk ${SDCARD} 1> /dev/null 2>&1
+    info "Partition with EFI, boot and root"
+    echo -e "label:gpt\nunit:sectors" | sfdisk ${SDCARD} 1> /dev/null 2>&1
+    partprobe -s ${SDCARD}
+    echo -e "n\n1\n\n+500M\nt\n1\nn\n2\n\n+1G\nn\n3\n\n\nw" | fdisk ${SDCARD} 1> /dev/null 2>&1
 
     info "List partitions..."
     partprobe -s ${SDCARD}
@@ -311,22 +303,26 @@ prepare_card () {
 
 format_card () {
 info "Format partitions on $DEV_NAME"
+    mkfs.fat -F 32 "${SDCARD}${SDDEV}1" -n "${DEV_NAME}-EFI" 1> /dev/null 2>&1
 if [[ "$DISKLAYOUT" = "ext4" ]]; then
-    mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}1" -L "${DEV_NAME}-boot" 1> /dev/null 2>&1
-    mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}2" -L "${DEV_NAME}-root" 1> /dev/null 2>&1
+    mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}2" -L "${DEV_NAME}-boot" 1> /dev/null 2>&1
+    mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}3" -L "${DEV_NAME}-root" 1> /dev/null 2>&1
     sleep 1
     mkdir -p $TMPDIR/root
-    mount ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
+    mount ${SDCARD}${SDDEV}3 $TMPDIR/root || exit
     sleep 1
     mkdir -p $TMPDIR/root/boot
-    mount ${SDCARD}${SDDEV}1 $TMPDIR/root/boot || exit
+    mount ${SDCARD}${SDDEV}2 $TMPDIR/root/boot || exit
+    sleep 1
+    mkdir -p $TMPDIR/root/boot/efi
+    mount ${SDCARD}${SDDEV}1 $TMPDIR/root/boot/efi || exit
     sleep 1
 else
     # DISKLAYOUT = btrfs
-    mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}1" -L "${DEV_NAME}-boot" 1> /dev/null 2>&1
-    mkfs.btrfs -f "${SDCARD}${SDDEV}2" -L "<FS_TREE>" 1> /dev/null 2>&1
+    mkfs.ext4 -F -O ^metadata_csum,^64bit "${SDCARD}${SDDEV}2" -L "${DEV_NAME}-boot" 1> /dev/null 2>&1
+    mkfs.btrfs -f "${SDCARD}${SDDEV}3" -L "<FS_TREE>" 1> /dev/null 2>&1
     mkdir -p $TMPDIR/root
-    mount ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
+    mount ${SDCARD}${SDDEV}3 $TMPDIR/root || exit
     sleep 1
     info "Create btrfs subvolumes..."
     btrfs subvolume create $TMPDIR/root/root 1> /dev/null 2>&1
@@ -334,23 +330,21 @@ else
     umount $TMPDIR/root || exit
     sleep 1
     info "Mount all partitions..."
-    mount -t btrfs -o subvol=root,compress=zstd:1,noatime ${SDCARD}${SDDEV}2 $TMPDIR/root || exit
+    mount -t btrfs -o subvol=root,compress=zstd:1,noatime ${SDCARD}${SDDEV}3 $TMPDIR/root || exit
     sleep 1
     mkdir -p $TMPDIR/root/home
-    mount -t btrfs -o subvol=home,compress=zstd:1,noatime ${SDCARD}${SDDEV}2 $TMPDIR/root/home  || exit
+    mount -t btrfs -o subvol=home,compress=zstd:1,noatime ${SDCARD}${SDDEV}3 $TMPDIR/root/home  || exit
     sleep 1
     mkdir -p $TMPDIR/root/boot
-    mount ${SDCARD}${SDDEV}1 $TMPDIR/root/boot  || exit
+    mount ${SDCARD}${SDDEV}2 $TMPDIR/root/boot  || exit
+    sleep 1
+    mkdir -p $TMPDIR/root/boot/efi
+    mount ${SDCARD}${SDDEV}1 $TMPDIR/root/boot/efi || exit
     sleep 1
 fi
 }
 
 cleanup () {
-    msg "Writing bootloader and cleaning up after install..."
-    # Flash bootloader
-    dd if=$TMPDIR/root/boot/idbloader.img of=${SDCARD} seek=64 conv=notrunc,fsync 1> /dev/null 2>&1
-    dd if=$TMPDIR/root/boot/u-boot.itb of=${SDCARD} seek=16384 conv=notrunc,fsync 1> /dev/null 2>&1
-
     info "Apply workaround for poor key import UI in PackageKit"
     $NSPAWN $TMPDIR/root rm -f /var/lib/rpm/__db* 1> /dev/null 2>&1
     $NSPAWN $TMPDIR/root rpm --import /etc/pki/rpm-gpg/RPM-GPG-KEY-fedora-$(rpm --eval '%{fedora}')-$arch 1> /dev/null 2>&1
@@ -503,18 +497,6 @@ else
 fi
 
 if [ ! -z "$DISKLAYOUT" ]; then
-    KERNELVER=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
-        --menu "Choose Kernel:" 20 75 10 \
-        "kernel-pbp"     "Vanilla with fedora config patched for pbp" \
-        "linux-majaro"   "Manjaro kernel repacked in rpm (no SELINUX)" \
-        3>&1 1>&2 2>&3 3>&-)
-
-else
-        clear
-        exit 1
-fi
-
-if [ ! -z "$KERNELVER" ]; then
     DNFUPGRADE=$(dialog --clear --title "Fedora Pinebook Pro Installer" \
         --menu "Upgrade during install?" 20 75 10 \
         "yes"  "Upgrade all to current version" \
@@ -611,7 +593,6 @@ if [ ! -z "$HOSTNAME" ]; then
     Password for root = (password hidden)
     SDCard/eMMC/USB = $SDCARD
     Disklayout = $DISKLAYOUT
-    Kernel = $KERNELVER
     Upgrade = $DNFUPGRADE
     Timezone = $TIMEZONE
     Locale = $LOCALE
