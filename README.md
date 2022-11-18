@@ -1,3 +1,7 @@
+# This repo is archived because you can use official installer.
+I personally flash https://tow-boot.org/ to spi, and follow instructions here https://tow-boot.org/distributions/fedora.html
+You will need to install WIFI firmware. An interim WiFi firmware you can use  https://fedora.roving-it.com/brcm-pinebookpro-0.0-1.noarch.rpm
+
 # pinebook-pro-fedora-installer
 * [General info](#general-info)
 * [Dependencies](#dependencies)
